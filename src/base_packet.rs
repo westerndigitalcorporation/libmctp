@@ -90,6 +90,27 @@ impl<'a> MCTPMessageBody<'a> {
         }
     }
 
+    /// Return the number of bytes used by the packet.
+    pub fn len(&self) -> usize {
+        let mut offset = 0;
+
+        offset += 1;
+
+        if let Some(head_buf) = &self.additional_header {
+            offset += head_buf.len();
+        }
+
+        offset += self.data.len();
+
+        offset += self.payload.len();
+
+        if let Some(mic_buf) = &self.mic {
+            offset += mic_buf.len();
+        }
+
+        offset
+    }
+
     /// Store the MCTPMessageBody packet into a buffer.
     pub fn to_raw_bytes(&self, buf: &mut [u8]) -> usize {
         let mut offset = 0;

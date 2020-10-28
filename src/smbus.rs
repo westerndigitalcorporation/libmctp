@@ -40,13 +40,32 @@ impl<'a> MCTPSMBusPacket<'a> {
         base_header: MCTPTransportHeader<[u8; 4]>,
         data_bytes: &'a [MCTPMessageBody],
     ) -> Self {
-        Self {
+        let mut packet = Self {
             smbus_header,
             base_header,
             data_bytes,
-        }
+        };
+
+        packet.finalise();
+
+        packet
     }
 
+    /// Return the number of bytes used by the packet.
+    pub fn len(&self) -> usize {
+        let mut size = 0;
+
+        size += 4;
+        size += 4;
+
+        for data_byte in self.data_bytes {
+            size += data_byte.len();
+        }
+
+        size
+    }
+
+    /// Store the MCTPSMBusPacket packet into a buffer.
     pub fn to_raw_bytes(&self, buf: &mut [u8]) -> usize {
         let mut size = 0;
 
@@ -61,6 +80,10 @@ impl<'a> MCTPSMBusPacket<'a> {
         }
 
         size
+    }
+
+    fn finalise(&mut self) {
+        self.smbus_header.set_byte_count(self.len() as u8 - 3);
     }
 }
 
@@ -146,8 +169,8 @@ mod smbus_tests {
         assert_eq!(buf[0], DEST_ID << 1);
         // Command code, is always 0x0F
         assert_eq!(buf[1], MCTP_SMBUS_COMMAND_CODE);
-        // Byte count
-        // assert_eq!(buf[2], 0);
+        // Byte count, is set later
+        assert_eq!(buf[2], 0);
         // Source slave address, bit 0 is always 1
         assert_eq!(buf[3], SOURCE_ID << 1 | 1);
     }
@@ -183,5 +206,8 @@ mod smbus_tests {
         let len = ctx.get_mctp_version_support(DEST_ID, &mut buf);
 
         assert_eq!(len, 21);
+
+        // Byte count
+        assert_eq!(buf[2], 18);
     }
 }
