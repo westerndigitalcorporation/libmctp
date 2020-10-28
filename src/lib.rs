@@ -16,4 +16,9 @@
 #[macro_use]
 extern crate bitfield;
 
+pub mod base_packet;
 pub mod control_packet;
+
+#[cfg(test)]
+#[macro_use]
+extern crate std;
