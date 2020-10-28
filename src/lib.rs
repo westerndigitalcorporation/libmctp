@@ -13,3 +13,7 @@
 #![no_std]
 #![deny(missing_docs)]
 
+#[macro_use]
+extern crate bitfield;
+
+pub mod control_packet;
