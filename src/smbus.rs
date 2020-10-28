@@ -1,12 +1,12 @@
 //! The SMBus specific implementation.
 
-use crate::base_packet::{MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader};
+use crate::base_packet::{
+    MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader, MessageType,
+};
 use crate::control_packet::{CommandCode, MCTPControlMessageRequestHeader, MCTPVersionQuery};
 use crate::mctp_traits::MCTPHeader;
 
 const HDR_VERSION: u8 = 0b001;
-
-const MCTP_CONTROL: u8 = 0;
 
 const MCTP_SMBUS_COMMAND_CODE: u8 = 0x0F;
 
@@ -140,7 +140,7 @@ impl MCTPSMBusContext {
         let base_header = self.generate_transport_header(dest_addr);
 
         let header: MCTPMessageBodyHeader<[u8; 1]> =
-            MCTPMessageBodyHeader::new(false, MCTP_CONTROL);
+            MCTPMessageBodyHeader::new(false, MessageType::MCtpControl);
         let command_header =
             MCTPControlMessageRequestHeader::new(false, 0, CommandCode::GetMCTPVersionSupport);
         let message_header = Some(&(command_header.0[..]));
@@ -219,12 +219,15 @@ mod smbus_tests {
         assert_eq!(buf[2], 9);
 
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MCTP_CONTROL);
+        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
 
         // Rq, D, rsvd and Instance ID
         assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+
         // Command Code
         assert_eq!(buf[10], CommandCode::GetMCTPVersionSupport as u8);
+
+        // Command query
         assert_eq!(buf[11], MCTPVersionQuery::MCTPBaseSpec as u8);
     }
 }

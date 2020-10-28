@@ -2,6 +2,18 @@
 
 use crate::mctp_traits::MCTPHeader;
 
+/// The Message Type of the MCTP packet
+pub enum MessageType {
+    /// A control message
+    MCtpControl = 0x00,
+    /// Message type used to support VDMs where the vendor is identified using
+    /// a PCI-based vendor ID.
+    VendorDefinedPCI = 0x7E,
+    /// Message type used to support VDMs where the vendor is identified using
+    /// an IANA-based vendor ID.
+    VendorDefinedIANA = 0x7F,
+}
+
 bitfield! {
     /// The MCTP Transport Header.
     pub struct MCTPTransportHeader(MSB0 [u8]);
@@ -54,12 +66,12 @@ impl MCTPMessageBodyHeader<[u8; 1]> {
     /// is covered by an overall MCTP message payload integrity check.
     /// `msg_type`: Defines the type of payload contained in the message
     /// data portion of the MCTP message.
-    pub fn new(ic: bool, msg_type: u8) -> Self {
+    pub fn new(ic: bool, msg_type: MessageType) -> Self {
         let buf = [0; 1];
         let mut body_header = MCTPMessageBodyHeader(buf);
 
         body_header.set_ic(ic as u8);
-        body_header.set_msg_type(msg_type);
+        body_header.set_msg_type(msg_type as u8);
 
         body_header
     }
@@ -162,19 +174,27 @@ mod smbus_tests {
 
     #[test]
     fn test_message_body_header() {
-        let body_header = MCTPMessageBodyHeader::new(false, 0);
+        let body_header = MCTPMessageBodyHeader::new(false, MessageType::MCtpControl);
 
         assert_eq!(body_header.ic(), 0);
-        assert_eq!(body_header.msg_type(), 0);
+        assert_eq!(body_header.msg_type(), MessageType::MCtpControl as u8);
     }
 
     #[test]
     fn test_message_body() {
-        let header: MCTPMessageBodyHeader<[u8; 1]> = MCTPMessageBodyHeader::new(false, 0);
+        let header: MCTPMessageBodyHeader<[u8; 1]> =
+            MCTPMessageBodyHeader::new(false, MessageType::VendorDefinedPCI);
         let additional_header = None;
         let data: [u8; 4] = [0x11; 4];
         let mic = None;
 
-        let _body = MCTPMessageBody::new(header, &additional_header, &data, mic);
+        let body = MCTPMessageBody::new(header, &additional_header, &data, mic);
+        let mut buf: [u8; 32] = [0; 32];
+
+        let len = body.to_raw_bytes(&mut buf);
+
+        assert_eq!(len, 5);
+
+        assert_eq!(buf[0], MessageType::VendorDefinedPCI as u8);
     }
 }
