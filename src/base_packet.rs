@@ -1,5 +1,7 @@
 //! This defines the structs and helpers for the standard packet types.
 
+use crate::mctp_traits::MCTPHeader;
+
 bitfield! {
     /// The MCTP Transport Header.
     pub struct MCTPTransportHeader(MSB0 [u8]);
@@ -89,9 +91,11 @@ impl<'a> MCTPMessageBody<'a> {
             mic,
         }
     }
+}
 
+impl<'a> MCTPHeader for MCTPMessageBody<'a> {
     /// Return the number of bytes used by the packet.
-    pub fn len(&self) -> usize {
+    fn len(&self) -> usize {
         let mut offset = 0;
 
         offset += 1;
@@ -112,7 +116,7 @@ impl<'a> MCTPMessageBody<'a> {
     }
 
     /// Store the MCTPMessageBody packet into a buffer.
-    pub fn to_raw_bytes(&self, buf: &mut [u8]) -> usize {
+    fn to_raw_bytes(&self, buf: &mut [u8]) -> usize {
         let mut offset = 0;
 
         buf[offset..(offset + 1)].copy_from_slice(&self.header.0);

@@ -2,6 +2,7 @@
 
 use crate::base_packet::{MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader};
 use crate::control_packet::MCTPControlMessageRequestHeader;
+use crate::mctp_traits::MCTPHeader;
 
 const HDR_VERSION: u8 = 0b001;
 
@@ -51,8 +52,14 @@ impl<'a> MCTPSMBusPacket<'a> {
         packet
     }
 
+    fn finalise(&mut self) {
+        self.smbus_header.set_byte_count(self.len() as u8 - 3);
+    }
+}
+
+impl<'a> MCTPHeader for MCTPSMBusPacket<'a> {
     /// Return the number of bytes used by the packet.
-    pub fn len(&self) -> usize {
+    fn len(&self) -> usize {
         let mut size = 0;
 
         size += 4;
@@ -66,7 +73,7 @@ impl<'a> MCTPSMBusPacket<'a> {
     }
 
     /// Store the MCTPSMBusPacket packet into a buffer.
-    pub fn to_raw_bytes(&self, buf: &mut [u8]) -> usize {
+    fn to_raw_bytes(&self, buf: &mut [u8]) -> usize {
         let mut size = 0;
 
         buf[0..4].copy_from_slice(&self.smbus_header.0);
@@ -80,10 +87,6 @@ impl<'a> MCTPSMBusPacket<'a> {
         }
 
         size
-    }
-
-    fn finalise(&mut self) {
-        self.smbus_header.set_byte_count(self.len() as u8 - 3);
     }
 }
 
