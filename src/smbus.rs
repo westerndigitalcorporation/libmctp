@@ -1,7 +1,7 @@
 //! The SMBus specific implementation.
 
 use crate::base_packet::{MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader};
-use crate::control_packet::MCTPControlMessageRequestHeader;
+use crate::control_packet::{CommandCode, MCTPControlMessageRequestHeader, MCTPVersionQuery};
 use crate::mctp_traits::MCTPHeader;
 
 const HDR_VERSION: u8 = 0b001;
@@ -128,24 +128,29 @@ impl MCTPSMBusContext {
     }
 
     /// Generate a packet to get the MCTP Versions supported by a device.
-    pub fn get_mctp_version_support(&self, dest_addr: u8, buf: &mut [u8]) -> usize {
+    ///
+    /// return MCTP base specification version information.
+    pub fn get_mctp_version_support(
+        &self,
+        dest_addr: u8,
+        query: MCTPVersionQuery,
+        buf: &mut [u8],
+    ) -> usize {
         let smbus_header = self.generate_smbus_header(dest_addr);
         let base_header = self.generate_transport_header(dest_addr);
+
         let header: MCTPMessageBodyHeader<[u8; 1]> =
             MCTPMessageBodyHeader::new(false, MCTP_CONTROL);
-
-        let command_header = MCTPControlMessageRequestHeader::new(false, false, 0, 0);
+        let command_header =
+            MCTPControlMessageRequestHeader::new(false, 0, CommandCode::GetMCTPVersionSupport);
         let message_header = Some(&(command_header.0[..]));
-        let message_data: [u8; 4] = [0x11; 4];
-        let payload: [u8; 4] = [0x34; 4];
-        let mic = None;
+        let message_data: [u8; 1] = [query as u8];
 
         let body: [MCTPMessageBody; 1] = [MCTPMessageBody::new(
             header,
             &message_header,
             &message_data,
-            &payload,
-            mic,
+            None,
         )];
 
         let packet = MCTPSMBusPacket::new(smbus_header, base_header, &body);
@@ -206,11 +211,20 @@ mod smbus_tests {
         let ctx = MCTPSMBusContext::new(SOURCE_ID);
         let mut buf: [u8; 21] = [0; 21];
 
-        let len = ctx.get_mctp_version_support(DEST_ID, &mut buf);
+        let len = ctx.get_mctp_version_support(DEST_ID, MCTPVersionQuery::MCTPBaseSpec, &mut buf);
 
-        assert_eq!(len, 21);
+        assert_eq!(len, 12);
 
         // Byte count
-        assert_eq!(buf[2], 18);
+        assert_eq!(buf[2], 9);
+
+        // IC and Message Type
+        assert_eq!(buf[8], 0 << 7 | MCTP_CONTROL);
+
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        // Command Code
+        assert_eq!(buf[10], CommandCode::GetMCTPVersionSupport as u8);
+        assert_eq!(buf[11], MCTPVersionQuery::MCTPBaseSpec as u8);
     }
 }

@@ -12,11 +12,9 @@ bitfield! {
     command_code, set_command_code: 15, 8;
 }
 
-impl MCTPControlMessageRequestHeader<[u8; 4]> {
+impl MCTPControlMessageRequestHeader<[u8; 2]> {
     /// Create a new MCTPControlMessageRequestHeader.
     ///
-    /// `request`: This bit is used to help differentiate between MCTP
-    /// control Request messages and other message classes. Refer to 11.5.
     /// `datagram`: This bit is used to indicate whether the Instance
     /// ID field is being used for tracking and matching requests and
     /// responses, or is just being used to identify a retransmitted message.
@@ -34,15 +32,43 @@ impl MCTPControlMessageRequestHeader<[u8; 4]> {
     /// request and response parameters for the commands is given in Clause 12.
     /// The Command Code that is sent in a Request shall be returned in the
     /// corresponding Response.
-    pub fn new(request: bool, datagram: bool, instance_id: u8, command_code: u8) -> Self {
-        let buf = [0; 4];
+    pub fn new(datagram: bool, instance_id: u8, command_code: CommandCode) -> Self {
+        let buf = [0; 2];
         let mut con_header = MCTPControlMessageRequestHeader(buf);
 
-        con_header.set_rq(request as u8);
+        con_header.set_rq(1);
         con_header.set_d(datagram as u8);
         con_header.set_instance_id(instance_id);
-        con_header.set_command_code(command_code);
+        con_header.set_command_code(command_code as u8);
 
         con_header
     }
+}
+
+/// A list of supported Command Codes
+pub enum CommandCode {
+    /// Reserved
+    Reserved = 0x00,
+    /// Assigns an EID to the endpoint at the given physical address.
+    SetEndpointID = 0x01,
+    /// Returns the EID presently assigned to an endpoint.
+    GetEndpointID = 0x02,
+    /// Retrieves a per-device unique UUID associated with the endpoint.
+    GetEndpointUUID = 0x03,
+    /// Lists which versions of the MCTP control protocol are supported on an endpoint.
+    GetMCTPVersionSupport = 0x04,
+}
+
+/// The type of version query when calling GetMCTPVersionSupport
+pub enum MCTPVersionQuery {
+    /// return MCTP base specification version information
+    MCTPBaseSpec = 0xFF,
+    /// return MCTP control protocol message version information
+    MCTPControlProcMessage = 0x00,
+    /// return version of DSP0241
+    DSP0241 = 0x01,
+    /// return version of DSP0261
+    DSP0261 = 0x02,
+    /// return version of DSP0261
+    DSP0261_2 = 0x03,
 }

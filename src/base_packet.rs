@@ -70,7 +70,6 @@ pub struct MCTPMessageBody<'a> {
     header: MCTPMessageBodyHeader<[u8; 1]>,
     additional_header: &'a Option<&'a [u8]>,
     data: &'a [u8],
-    payload: &'a [u8],
     mic: Option<&'a [u8]>,
 }
 
@@ -80,14 +79,12 @@ impl<'a> MCTPMessageBody<'a> {
         header: MCTPMessageBodyHeader<[u8; 1]>,
         additional_header: &'a Option<&'a [u8]>,
         data: &'a [u8],
-        payload: &'a [u8],
         mic: Option<&'a [u8]>,
     ) -> Self {
         Self {
             header,
             additional_header,
             data,
-            payload,
             mic,
         }
     }
@@ -105,8 +102,6 @@ impl<'a> MCTPHeader for MCTPMessageBody<'a> {
         }
 
         offset += self.data.len();
-
-        offset += self.payload.len();
 
         if let Some(mic_buf) = &self.mic {
             offset += mic_buf.len();
@@ -129,9 +124,6 @@ impl<'a> MCTPHeader for MCTPMessageBody<'a> {
 
         buf[offset..(offset + self.data.len())].copy_from_slice(self.data);
         offset += self.data.len();
-
-        buf[offset..(offset + self.payload.len())].copy_from_slice(self.payload);
-        offset += self.payload.len();
 
         if let Some(mic_buf) = &self.mic {
             buf[offset..(offset + mic_buf.len())].copy_from_slice(mic_buf);
@@ -181,9 +173,8 @@ mod smbus_tests {
         let header: MCTPMessageBodyHeader<[u8; 1]> = MCTPMessageBodyHeader::new(false, 0);
         let additional_header = None;
         let data: [u8; 4] = [0x11; 4];
-        let payload: [u8; 4] = [0x34; 4];
         let mic = None;
 
-        let _body = MCTPMessageBody::new(header, &additional_header, &data, &payload, mic);
+        let _body = MCTPMessageBody::new(header, &additional_header, &data, mic);
     }
 }
