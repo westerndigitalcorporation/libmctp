@@ -18,6 +18,7 @@ extern crate bitfield;
 
 pub mod base_packet;
 pub mod control_packet;
+pub mod smbus;
 
 #[cfg(test)]
 #[macro_use]
