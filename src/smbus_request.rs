@@ -1,109 +1,19 @@
-//! The SMBus specific protocol implementation.
+//! The SMBus specific CMTP request protocol implementation.
 
 use crate::base_packet::{
     MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader, MessageType,
 };
 use crate::control_packet::{CommandCode, MCTPControlMessageRequestHeader, MCTPVersionQuery};
 use crate::mctp_traits::MCTPHeader;
+use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket, HDR_VERSION, MCTP_SMBUS_COMMAND_CODE};
 
-const HDR_VERSION: u8 = 0b001;
-
-const MCTP_SMBUS_COMMAND_CODE: u8 = 0x0F;
-
-bitfield! {
-    /// The MCTP SMBus/I2C Packet Header
-    pub struct MCTPSMBusHeader([u8]);
-    u8;
-    dest_read_write, set_dest_read_write: 0, 0;
-    dest_slave_addr, set_dest_slave_addr : 7, 1;
-    command_code, set_command_code: 15, 8;
-    byte_count, set_byte_count: 23, 16;
-    source_slave_addr, set_source_slave_addr: 30, 25;
-    source_read_write, set_source_read_write: 24, 24;
-}
-
-impl MCTPSMBusHeader<[u8; 4]> {
-    /// Create a new MCTPSMBusHeader
-    pub fn new() -> Self {
-        let buf = [0; 4];
-        MCTPSMBusHeader(buf)
-    }
-
-    /// Create a new MCTPSMBusHeader from an already existing buffer
-    pub fn new_from_buf(buf: [u8; 4]) -> Self {
-        MCTPSMBusHeader(buf)
-    }
-}
-
-impl Default for MCTPSMBusHeader<[u8; 4]> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-pub(crate) struct MCTPSMBusPacket<'a> {
-    smbus_header: MCTPSMBusHeader<[u8; 4]>,
-    base_header: MCTPTransportHeader<[u8; 4]>,
-    data_bytes: &'a MCTPMessageBody<'a>,
-}
-
-impl<'a> MCTPSMBusPacket<'a> {
-    pub fn new(
-        smbus_header: MCTPSMBusHeader<[u8; 4]>,
-        base_header: MCTPTransportHeader<[u8; 4]>,
-        data_bytes: &'a MCTPMessageBody,
-    ) -> Self {
-        let mut packet = Self {
-            smbus_header,
-            base_header,
-            data_bytes,
-        };
-
-        packet.finalise();
-
-        packet
-    }
-
-    fn finalise(&mut self) {
-        self.smbus_header.set_byte_count(self.len() as u8 - 3);
-    }
-}
-
-impl<'a> MCTPHeader for MCTPSMBusPacket<'a> {
-    /// Return the number of bytes used by the packet.
-    fn len(&self) -> usize {
-        let mut size = 0;
-
-        size += 4;
-        size += 4;
-        size += self.data_bytes.len();
-
-        size
-    }
-
-    /// Store the MCTPSMBusPacket packet into a buffer.
-    fn to_raw_bytes(&self, buf: &mut [u8]) -> usize {
-        let mut size = 0;
-
-        buf[0..4].copy_from_slice(&self.smbus_header.0);
-        size += 4;
-
-        buf[4..8].copy_from_slice(&self.base_header.0);
-        size += 4;
-
-        size += self.data_bytes.to_raw_bytes(&mut buf[size..]);
-
-        size
-    }
-}
-
-/// The global context for MCTP SMBus raw protocol operations
-pub struct MCTPSMBusContextRaw {
+/// The context for MCTP SMBus request protocol operations
+pub struct MCTPSMBusContextRequest {
     address: u8,
 }
 
-impl MCTPSMBusContextRaw {
-    /// Create a new SBMust Raw context
+impl MCTPSMBusContextRequest {
+    /// Create a new SBMust request context
     ///
     /// `address`: The source address of this device
     pub fn new(address: u8) -> Self {
@@ -189,7 +99,7 @@ impl MCTPSMBusContextRaw {
 }
 
 #[cfg(test)]
-mod smbus_tests {
+mod smbus_request_tests {
     use super::*;
 
     #[test]
@@ -197,7 +107,7 @@ mod smbus_tests {
         const DEST_ID: u8 = 0x23;
         const SOURCE_ID: u8 = 0x23;
 
-        let ctx = MCTPSMBusContextRaw::new(SOURCE_ID);
+        let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
 
         let header = ctx.generate_smbus_header(DEST_ID);
         let buf = header.0;
@@ -217,7 +127,7 @@ mod smbus_tests {
         const DEST_ID: u8 = 0x23;
         const SOURCE_ID: u8 = 0x23;
 
-        let ctx = MCTPSMBusContextRaw::new(SOURCE_ID);
+        let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
 
         let header = ctx.generate_transport_header(DEST_ID);
         let buf = header.0;
@@ -237,7 +147,7 @@ mod smbus_tests {
         const DEST_ID: u8 = 0x23;
         const SOURCE_ID: u8 = 0x23;
 
-        let ctx = MCTPSMBusContextRaw::new(SOURCE_ID);
+        let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
         let mut buf: [u8; 21] = [0; 21];
 
         let len = ctx.get_mctp_version_support(DEST_ID, MCTPVersionQuery::MCTPBaseSpec, &mut buf);

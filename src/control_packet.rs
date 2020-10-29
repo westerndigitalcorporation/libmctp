@@ -1,5 +1,7 @@
 //! This describes the MCTP Control Message headers and protocols.
 
+use crate::mctp_traits::MCTPControlMessageRequest;
+
 bitfield! {
     /// This is the header Control Message without the completion code. This
     /// is used for MCTP Control Message requests.
@@ -12,70 +14,17 @@ bitfield! {
     command_code, set_command_code: 15, 8;
 }
 
-impl MCTPControlMessageRequestHeader<[u8; 2]> {
-    /// Create a new MCTPControlMessageRequestHeader.
-    ///
-    /// `datagram`: This bit is used to indicate whether the Instance
-    /// ID field is being used for tracking and matching requests and
-    /// responses, or is just being used to identify a retransmitted message.
-    /// Refer to 11.5.
-    /// `instance_id`: The Instance ID field is used to identify new instances
-    /// of an MCTP control Request or Datagram to differentiate new requests or
-    /// datagrams that are sent to a given message terminus from retried
-    /// messages that are sent to the same message terminus. The Instance ID
-    /// field is also used to match up a particular instance of an MCTP
-    /// Response message with the corresponding instance of an MCTP Request
-    /// message.
-    /// `command_code`: For Request messages, this field is a command code
-    /// indicating the type of MCTP operation the packet is requesting. Command
-    /// code values are defined in Table 12. The format and definition of
-    /// request and response parameters for the commands is given in Clause 12.
-    /// The Command Code that is sent in a Request shall be returned in the
-    /// corresponding Response.
-    pub fn new(datagram: bool, instance_id: u8, command_code: CommandCode) -> Self {
-        let buf = [0; 2];
-        let mut con_header = MCTPControlMessageRequestHeader(buf);
-
-        con_header.set_rq(1);
-        con_header.set_d(datagram as u8);
-        con_header.set_instance_id(instance_id);
-        con_header.set_command_code(command_code as u8);
-
-        con_header
-    }
-
-    /// Create a new MCTPControlMessageRequestHeader from a buffer.
-    pub fn new_from_buf(buf: [u8; 2]) -> Self {
-        MCTPControlMessageRequestHeader(buf)
-    }
-
-    /// Get the length of the request data command
-    pub fn get_request_data_len(&self) -> usize {
-        match self.command_code().into() {
-            CommandCode::Reserved => unimplemented!(),
-            CommandCode::SetEndpointID => unimplemented!(),
-            CommandCode::GetEndpointID => unimplemented!(),
-            CommandCode::GetEndpointUUID => unimplemented!(),
-            CommandCode::GetMCTPVersionSupport => 1,
-            CommandCode::GetMessageTypeSupport => unimplemented!(),
-            CommandCode::GetVendorDefinedMessageSupport => unimplemented!(),
-            CommandCode::ResolveEndpointID => unimplemented!(),
-            CommandCode::AllocateEndpointIDs => unimplemented!(),
-            CommandCode::RoutingInformationUpdate => unimplemented!(),
-            CommandCode::GetRoutingTableEntries => unimplemented!(),
-            CommandCode::PrepareForEndpointDiscovery => unimplemented!(),
-            CommandCode::EndpointDiscovery => unimplemented!(),
-            CommandCode::DiscoveryNotify => unimplemented!(),
-            CommandCode::GetNetworkID => unimplemented!(),
-            CommandCode::QueryHop => unimplemented!(),
-            CommandCode::ResolveUUID => unimplemented!(),
-            CommandCode::QueryRateLimit => unimplemented!(),
-            CommandCode::RequestTXRateLimit => unimplemented!(),
-            CommandCode::UpdateRateLimit => unimplemented!(),
-            CommandCode::QuerySupportedInterfaces => unimplemented!(),
-            CommandCode::Unknown => unimplemented!(),
-        }
-    }
+bitfield! {
+    /// This is the header Control Message without the completion code. This
+    /// is used for MCTP Control Message requests.
+    pub struct MCTPControlMessageResponseHeader(MSB0 [u8]);
+    u8;
+    rq, set_rq : 0, 0;
+    d, set_d: 1, 1;
+    rsvd, _: 2, 2;
+    instance_id, set_instance_id: 7, 3;
+    command_code, set_command_code: 15, 8;
+    completion_code, set_completion_code: 23, 16;
 }
 
 /// A list of supported Command Codes
@@ -155,6 +104,22 @@ impl From<u8> for CommandCode {
     }
 }
 
+/// This field is only present in Response messages. This field contains a value that indicates whether the response completed normally. If the command did not complete normally, the value can provide additional information regarding the error condition. The values for completion codes are specified in Table 13.
+pub enum CompletionCode {
+    /// The Request was accepted and completed normally
+    Success = 0x00,
+    /// This is a generic failure message. (It should not be used when a more specific result code applies.)
+    Error = 0x01,
+    /// The packet payload contained invalid data or an illegal parameter value.
+    ErrorInvalidData = 0x02,
+    /// The message length was invalid. (The Message body was larger or smaller than expected for the particular request.)
+    ErrorInvalidLength = 0x03,
+    /// The Receiver is in a transient state where it is not ready to receive the corresponding message
+    ErrorNotReady = 0x04,
+    /// The command field in the control type of the received message is unspecified or not supported on this endpoint. This completion code shall be returned for any unsupported command values received in MCTP control Request messages.
+    ErrorUnsupportedCmd = 0x05,
+}
+
 /// The type of version query when calling GetMCTPVersionSupport
 pub enum MCTPVersionQuery {
     /// return MCTP base specification version information
@@ -167,4 +132,103 @@ pub enum MCTPVersionQuery {
     DSP0261 = 0x02,
     /// return version of DSP0261
     DSP0261_2 = 0x03,
+}
+
+impl MCTPControlMessageRequestHeader<[u8; 2]> {
+    /// Create a new MCTPControlMessageRequestHeader.
+    ///
+    /// `datagram`: This bit is used to indicate whether the Instance
+    /// ID field is being used for tracking and matching requests and
+    /// responses, or is just being used to identify a retransmitted message.
+    /// Refer to 11.5.
+    /// `instance_id`: The Instance ID field is used to identify new instances
+    /// of an MCTP control Request or Datagram to differentiate new requests or
+    /// datagrams that are sent to a given message terminus from retried
+    /// messages that are sent to the same message terminus. The Instance ID
+    /// field is also used to match up a particular instance of an MCTP
+    /// Response message with the corresponding instance of an MCTP Request
+    /// message.
+    /// `command_code`: For Request messages, this field is a command code
+    /// indicating the type of MCTP operation the packet is requesting. Command
+    /// code values are defined in Table 12. The format and definition of
+    /// request and response parameters for the commands is given in Clause 12.
+    /// The Command Code that is sent in a Request shall be returned in the
+    /// corresponding Response.
+    pub fn new(datagram: bool, instance_id: u8, command_code: CommandCode) -> Self {
+        let buf = [0; 2];
+        let mut con_header = MCTPControlMessageRequestHeader(buf);
+
+        con_header.set_rq(1);
+        con_header.set_d(datagram as u8);
+        con_header.set_instance_id(instance_id);
+        con_header.set_command_code(command_code as u8);
+
+        con_header
+    }
+
+    /// Create a new MCTPControlMessageRequestHeader from a buffer.
+    pub fn new_from_buf(buf: [u8; 2]) -> Self {
+        MCTPControlMessageRequestHeader(buf)
+    }
+}
+
+impl MCTPControlMessageRequest for MCTPControlMessageRequestHeader<[u8; 2]> {
+    fn command_code(&self) -> u8 {
+        self.command_code()
+    }
+}
+
+impl MCTPControlMessageResponseHeader<[u8; 3]> {
+    /// Create a new MCTPControlMessageResponseHeader.
+    ///
+    /// `datagram`: This bit is used to indicate whether the Instance
+    /// ID field is being used for tracking and matching requests and
+    /// responses, or is just being used to identify a retransmitted message.
+    /// Refer to 11.5.
+    /// `instance_id`: The Instance ID field is used to identify new instances
+    /// of an MCTP control Request or Datagram to differentiate new requests or
+    /// datagrams that are sent to a given message terminus from retried
+    /// messages that are sent to the same message terminus. The Instance ID
+    /// field is also used to match up a particular instance of an MCTP
+    /// Response message with the corresponding instance of an MCTP Request
+    /// message.
+    /// `command_code`: For Request messages, this field is a command code
+    /// indicating the type of MCTP operation the packet is requesting. Command
+    /// code values are defined in Table 12. The format and definition of
+    /// request and response parameters for the commands is given in Clause 12.
+    /// The Command Code that is sent in a Request shall be returned in the
+    /// corresponding Response.
+    /// `completion_code`: This field is only present in Response messages.
+    /// This field contains a value that indicates whether the response
+    /// completed normally. If the command did not complete normally, the value
+    /// can provide additional information regarding the error condition.
+    /// The values for completion codes are specified in Table 13.
+    pub fn new(
+        datagram: bool,
+        instance_id: u8,
+        command_code: CommandCode,
+        competion_code: CompletionCode,
+    ) -> Self {
+        let buf = [0; 3];
+        let mut con_header = MCTPControlMessageResponseHeader(buf);
+
+        con_header.set_rq(1);
+        con_header.set_d(datagram as u8);
+        con_header.set_instance_id(instance_id);
+        con_header.set_command_code(command_code as u8);
+        con_header.set_completion_code(competion_code as u8);
+
+        con_header
+    }
+
+    /// Create a new MCTPControlMessageResponseHeader from a buffer.
+    pub fn new_from_buf(buf: [u8; 3]) -> Self {
+        MCTPControlMessageResponseHeader(buf)
+    }
+}
+
+impl MCTPControlMessageRequest for MCTPControlMessageResponseHeader<[u8; 3]> {
+    fn command_code(&self) -> u8 {
+        self.command_code()
+    }
 }

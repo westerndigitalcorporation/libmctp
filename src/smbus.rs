@@ -3,7 +3,8 @@
 //! This should be used when you want to communicate via MCTP over SMBus/I2C.
 //!
 //! In order to use this you first need to crete the main context struct. Then
-//! the `get_raw()` function can be used to issue raw commands.
+//! the `get_request()`/`get_response()` functions can be used to issue raw
+//! commands.
 //!
 //! The libmctp library will not send the packets, instead it will create a
 //! buffer containing the data to be sent. This allows you to use your own
@@ -19,7 +20,7 @@
 //!     let mut buf: [u8; 32] = [0; 32];
 //!
 //!     const DEST_ID: u8 = 0x34;
-//!     let len = ctx.get_raw().get_mctp_version_support(
+//!     let len = ctx.get_request().get_mctp_version_support(
 //!         DEST_ID,
 //!         MCTPVersionQuery::MCTPBaseSpec,
 //!         &mut buf,
@@ -35,12 +36,15 @@ use crate::base_packet::{
 };
 use crate::control_packet::MCTPControlMessageRequestHeader;
 use crate::errors::{ControlMessageError, DecodeError};
-use crate::smbus_raw::MCTPSMBusPacket;
-use crate::smbus_raw::{MCTPSMBusContextRaw, MCTPSMBusHeader};
+use crate::mctp_traits::MCTPControlMessageRequest;
+use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket};
+use crate::smbus_request::MCTPSMBusContextRequest;
+use crate::smbus_response::MCTPSMBusContextResponse;
 
 /// The global context for MCTP SMBus operations
 pub struct MCTPSMBusContext {
-    raw: MCTPSMBusContextRaw,
+    request: MCTPSMBusContextRequest,
+    response: MCTPSMBusContextResponse,
 }
 
 impl MCTPSMBusContext {
@@ -49,14 +53,21 @@ impl MCTPSMBusContext {
     /// `address`: The source address of this device
     pub fn new(address: u8) -> Self {
         Self {
-            raw: MCTPSMBusContextRaw::new(address),
+            request: MCTPSMBusContextRequest::new(address),
+            response: MCTPSMBusContextResponse::new(address),
         }
     }
 
-    /// Get the underlying raw protocol struct.
+    /// Get the underlying request protocol struct.
     /// This can be used to generate specific packets
-    pub fn get_raw(&self) -> &MCTPSMBusContextRaw {
-        &self.raw
+    pub fn get_request(&self) -> &MCTPSMBusContextRequest {
+        &self.request
+    }
+
+    /// Get the underlying response protocol struct.
+    /// This can be used to generate specific packets
+    pub fn get_response(&self) -> &MCTPSMBusContextResponse {
+        &self.response
     }
 
     /// Decodes a MCTP packet
@@ -119,7 +130,7 @@ mod smbus_tests {
         let ctx = MCTPSMBusContext::new(SOURCE_ID);
         let mut buf: [u8; 12] = [0; 12];
 
-        let _len = ctx.get_raw().get_mctp_version_support(
+        let _len = ctx.get_request().get_mctp_version_support(
             DEST_ID,
             MCTPVersionQuery::MCTPBaseSpec,
             &mut buf,

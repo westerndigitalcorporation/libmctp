@@ -26,7 +26,9 @@ pub mod errors;
 /// Internal MCTP traits.
 mod mctp_traits;
 pub mod smbus;
-pub mod smbus_raw;
+pub mod smbus_proto;
+pub mod smbus_request;
+pub mod smbus_response;
 
 // Use this to generate nicer docs
 #[doc(inline)]
@@ -36,7 +38,9 @@ pub use crate::control_packet::MCTPControlMessageRequestHeader;
 #[doc(inline)]
 pub use crate::smbus::MCTPSMBusContext;
 #[doc(inline)]
-pub use crate::smbus_raw::MCTPSMBusContextRaw;
+pub use crate::smbus_request::MCTPSMBusContextRequest;
+#[doc(inline)]
+pub use crate::smbus_response::MCTPSMBusContextResponse;
 
 // This is used to run the tests on a host
 #[cfg(test)]
