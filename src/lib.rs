@@ -20,6 +20,7 @@ pub mod base_packet;
 pub mod control_packet;
 pub mod mctp_traits;
 pub mod smbus;
+pub mod smbus_raw;
 
 #[cfg(test)]
 #[macro_use]
