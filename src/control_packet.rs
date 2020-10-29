@@ -57,6 +57,38 @@ pub enum CommandCode {
     GetEndpointUUID = 0x03,
     /// Lists which versions of the MCTP control protocol are supported on an endpoint.
     GetMCTPVersionSupport = 0x04,
+    /// Lists the message types that an endpoint supports.
+    GetMessageTypeSupport = 0x05,
+    /// Used to discover an MCTP endpoint’s vendor-specific MCTP extensions and capabilities.
+    GetVendorDefinedMessageSupport = 0x06,
+    /// Used to get the physical address associated with a given EID.
+    ResolveEndpointID = 0x07,
+    /// Used by the bus owner to allocate a pool of EIDs to an MCTP bridge
+    AllocateEndpointIDs = 0x08,
+    /// Used by the bus owner to extend or update the routing information that is maintained by an MCTP bridge
+    RoutingInformationUpdate = 0x09,
+    /// Used to request an MCTP bridge to return data corresponding to its present routing table entries
+    GetRoutingTableEntries = 0x0A,
+    /// Used to direct endpoints to clear their “discovered”flags to enable them to respond to the Endpoint Discovery command
+    PrepareForEndpointDiscovery = 0x0B,
+    /// Used to discover MCTP-capable devices on a bus, provided that another discovery mechanism is not defined for the particular physical medium
+    EndpointDiscovery = 0x0C,
+    /// Used to notify the bus owner that an MCTP device has become available on the bus
+    DiscoveryNotify = 0x0D,
+    /// Used to get the MCTP networkID
+    GetNetworkID = 0x0E,
+    /// Used to discover what bridges, if any, are in the path to a given target endpoint and what transmission unit sizes the bridges will pass for a given message type when routing to the target endpoint
+    QueryHop = 0x0F,
+    /// Used by endpoints to find another endpoint matching an endpoint that uses a specific UUID
+    ResolveUUID = 0x10,
+    /// Used to discover the data rate limit settings of the given target for incoming messages
+    QueryRateLimit = 0x11,
+    /// Used to request the allowed transmit data rate limit forthe given endpoint for outgoing messages
+    RequestTXRateLimit = 0x12,
+    /// Used to update the receiving side on change to the transmit data rate which was not requested by the receiver
+    UpdateRateLimit = 0x13,
+    /// Used to discover the existing device MCTP interfaces
+    QuerySupportedInterfaces = 0x14,
 }
 
 /// The type of version query when calling GetMCTPVersionSupport

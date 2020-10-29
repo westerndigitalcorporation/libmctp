@@ -127,6 +127,23 @@ impl MCTPSMBusContextRaw {
         smbus_header
     }
 
+    /// Assigns an EID to the endpoint at the given physical address
+    pub fn set_endpoint_id(&self, _dest_addr: u8) -> usize {
+        unimplemented!()
+    }
+
+    /// Returns the EID presently assigned to an endpoint. Also returns
+    /// information about what type the endpoint is and its level of use of
+    /// static EIDs.
+    pub fn get_endpoint_id(&self, _dest_addr: u8) -> usize {
+        unimplemented!()
+    }
+
+    /// Retrieves a per-device unique UUID associated withthe endpoint
+    pub fn get_endpoint_uuid(&self, _dest_addr: u8) -> usize {
+        unimplemented!()
+    }
+
     /// Generate a packet to get the MCTP Versions supported by a device.
     ///
     /// return MCTP base specification version information.
@@ -156,6 +173,16 @@ impl MCTPSMBusContextRaw {
         let packet = MCTPSMBusPacket::new(smbus_header, base_header, &body);
 
         packet.to_raw_bytes(buf)
+    }
+
+    /// Lists the message types that an endpoint supports
+    pub fn get_message_type_suport(&self, _dest_addr: u8) -> usize {
+        unimplemented!()
+    }
+
+    /// Used to discover an MCTP endpoint’s vendor-specific MCTP extensions and capabilities
+    pub fn get_vendor_defined_message_support(&self, _dest_addr: u8) -> usize {
+        unimplemented!()
     }
 }
 
