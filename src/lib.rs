@@ -22,6 +22,7 @@ extern crate bitfield;
 
 pub mod base_packet;
 pub mod control_packet;
+pub mod errors;
 /// Internal MCTP traits.
 mod mctp_traits;
 pub mod smbus;

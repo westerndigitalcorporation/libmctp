@@ -34,6 +34,7 @@ use crate::base_packet::{
     MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader, MessageType,
 };
 use crate::control_packet::MCTPControlMessageRequestHeader;
+use crate::errors::{ControlMessageError, DecodeError};
 use crate::smbus_raw::MCTPSMBusPacket;
 use crate::smbus_raw::{MCTPSMBusContextRaw, MCTPSMBusHeader};
 
@@ -59,7 +60,10 @@ impl MCTPSMBusContext {
     }
 
     /// Decodes a MCTP packet
-    pub fn decode_packet<'a>(&self, buf: &'a [u8]) -> Result<(MessageType, &'a [u8]), ()> {
+    pub fn decode_packet<'a>(
+        &self,
+        buf: &'a [u8],
+    ) -> Result<(MessageType, &'a [u8]), (MessageType, DecodeError)> {
         // buf is a MCTPSMBusPacket
         let mut smbus_header_buf: [u8; 4] = [0; 4];
         smbus_header_buf.copy_from_slice(&buf[0..4]);
@@ -82,7 +86,10 @@ impl MCTPSMBusContext {
                 let data = &buf[11..];
 
                 if data.len() != body_additional_header.get_request_data_len() {
-                    return Err(());
+                    return Err((
+                        MessageType::MCtpControl,
+                        DecodeError::ControlMessage(ControlMessageError::InvalidRequestDataLength),
+                    ));
                 }
 
                 let body =
@@ -94,7 +101,7 @@ impl MCTPSMBusContext {
             }
             MessageType::VendorDefinedPCI => unimplemented!(),
             MessageType::VendorDefinedIANA => unimplemented!(),
-            _ => Err(()),
+            _ => Err((MessageType::Invalid, DecodeError::Unknown)),
         }
     }
 }
