@@ -1,4 +1,6 @@
-//! Traits used for the MCTP implementation
+//! Traits used for the MCTP implementation.
+//!
+//! This is an internal implementation.
 
 /// The standard trait for all MCTP headers
 pub(crate) trait MCTPHeader {

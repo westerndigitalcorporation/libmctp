@@ -35,6 +35,12 @@ impl MCTPSMBusHeader<[u8; 4]> {
     }
 }
 
+impl Default for MCTPSMBusHeader<[u8; 4]> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub(crate) struct MCTPSMBusPacket<'a> {
     smbus_header: MCTPSMBusHeader<[u8; 4]>,
     base_header: MCTPTransportHeader<[u8; 4]>,

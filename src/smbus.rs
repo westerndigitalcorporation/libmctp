@@ -1,4 +1,34 @@
 //! The SMBus specific protocol implementation.
+//!
+//! This should be used when you want to communicate via MCTP over SMBus/I2C.
+//!
+//! In order to use this you first need to crete the main context struct. Then
+//! the `get_raw()` function can be used to issue raw commands.
+//!
+//! The libmctp library will not send the packets, instead it will create a
+//! buffer containing the data to be sent. This allows you to use your own
+//! SMBus/I2C implementation.
+//!
+//! ```rust
+//!     use libmctp::control_packet::MCTPVersionQuery;
+//!     use libmctp::smbus::MCTPSMBusContext;
+//!
+//!     const MY_ID: u8 = 0x23;
+//!     let ctx = MCTPSMBusContext::new(MY_ID);
+//!
+//!     let mut buf: [u8; 32] = [0; 32];
+//!
+//!     const DEST_ID: u8 = 0x34;
+//!     let len = ctx.get_raw().get_mctp_version_support(
+//!         DEST_ID,
+//!         MCTPVersionQuery::MCTPBaseSpec,
+//!         &mut buf,
+//!     );
+//!
+//!     // Send the buf of length len via SMBus
+//! ```
+//!
+//! Packets can be decoded using the `decode_packet()` function.
 
 use crate::base_packet::{
     MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader, MessageType,
@@ -28,7 +58,7 @@ impl MCTPSMBusContext {
         &self.raw
     }
 
-    /// Decode a MCTP packet
+    /// Decodes a MCTP packet
     pub fn decode_packet<'a>(&self, buf: &'a [u8]) -> Result<(MessageType, &'a [u8]), ()> {
         // buf is a MCTPSMBusPacket
         let mut smbus_header_buf: [u8; 4] = [0; 4];

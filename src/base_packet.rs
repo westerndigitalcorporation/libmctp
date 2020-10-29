@@ -1,4 +1,7 @@
 //! This defines the structs and helpers for the standard packet types.
+//!
+//! This provides the low level structs for creating MCTP packets.
+//! This is generally only used by libMCTP.
 
 use crate::mctp_traits::MCTPHeader;
 
