@@ -27,19 +27,23 @@ impl MCTPSMBusHeader<[u8; 4]> {
         let buf = [0; 4];
         MCTPSMBusHeader(buf)
     }
+
+    pub fn new_from_buf(buf: [u8; 4]) -> Self {
+        MCTPSMBusHeader(buf)
+    }
 }
 
 struct MCTPSMBusPacket<'a> {
     smbus_header: MCTPSMBusHeader<[u8; 4]>,
     base_header: MCTPTransportHeader<[u8; 4]>,
-    data_bytes: &'a [MCTPMessageBody<'a>],
+    data_bytes: &'a MCTPMessageBody<'a>,
 }
 
 impl<'a> MCTPSMBusPacket<'a> {
     pub fn new(
         smbus_header: MCTPSMBusHeader<[u8; 4]>,
         base_header: MCTPTransportHeader<[u8; 4]>,
-        data_bytes: &'a [MCTPMessageBody],
+        data_bytes: &'a MCTPMessageBody,
     ) -> Self {
         let mut packet = Self {
             smbus_header,
@@ -64,10 +68,7 @@ impl<'a> MCTPHeader for MCTPSMBusPacket<'a> {
 
         size += 4;
         size += 4;
-
-        for data_byte in self.data_bytes {
-            size += data_byte.len();
-        }
+        size += self.data_bytes.len();
 
         size
     }
@@ -82,9 +83,7 @@ impl<'a> MCTPHeader for MCTPSMBusPacket<'a> {
         buf[4..8].copy_from_slice(&self.base_header.0);
         size += 4;
 
-        for data_byte in self.data_bytes {
-            size += data_byte.to_raw_bytes(&mut buf[size..]);
-        }
+        size += self.data_bytes.to_raw_bytes(&mut buf[size..]);
 
         size
     }
@@ -163,12 +162,7 @@ impl MCTPSMBusContextRaw {
         let message_header = Some(&(command_header.0[..]));
         let message_data: [u8; 1] = [query as u8];
 
-        let body: [MCTPMessageBody; 1] = [MCTPMessageBody::new(
-            header,
-            &message_header,
-            &message_data,
-            None,
-        )];
+        let body = MCTPMessageBody::new(header, &message_header, &message_data, None);
 
         let packet = MCTPSMBusPacket::new(smbus_header, base_header, &body);
 
