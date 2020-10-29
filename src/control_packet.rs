@@ -43,6 +43,39 @@ impl MCTPControlMessageRequestHeader<[u8; 2]> {
 
         con_header
     }
+
+    /// Create a new MCTPControlMessageRequestHeader from a buffer.
+    pub fn new_from_buf(buf: [u8; 2]) -> Self {
+        MCTPControlMessageRequestHeader(buf)
+    }
+
+    /// Get the length of the request data command
+    pub fn get_request_data_len(&self) -> usize {
+        match self.command_code().into() {
+            CommandCode::Reserved => unimplemented!(),
+            CommandCode::SetEndpointID => unimplemented!(),
+            CommandCode::GetEndpointID => unimplemented!(),
+            CommandCode::GetEndpointUUID => unimplemented!(),
+            CommandCode::GetMCTPVersionSupport => 1,
+            CommandCode::GetMessageTypeSupport => unimplemented!(),
+            CommandCode::GetVendorDefinedMessageSupport => unimplemented!(),
+            CommandCode::ResolveEndpointID => unimplemented!(),
+            CommandCode::AllocateEndpointIDs => unimplemented!(),
+            CommandCode::RoutingInformationUpdate => unimplemented!(),
+            CommandCode::GetRoutingTableEntries => unimplemented!(),
+            CommandCode::PrepareForEndpointDiscovery => unimplemented!(),
+            CommandCode::EndpointDiscovery => unimplemented!(),
+            CommandCode::DiscoveryNotify => unimplemented!(),
+            CommandCode::GetNetworkID => unimplemented!(),
+            CommandCode::QueryHop => unimplemented!(),
+            CommandCode::ResolveUUID => unimplemented!(),
+            CommandCode::QueryRateLimit => unimplemented!(),
+            CommandCode::RequestTXRateLimit => unimplemented!(),
+            CommandCode::UpdateRateLimit => unimplemented!(),
+            CommandCode::QuerySupportedInterfaces => unimplemented!(),
+            CommandCode::Unknown => unimplemented!(),
+        }
+    }
 }
 
 /// A list of supported Command Codes
@@ -89,6 +122,37 @@ pub enum CommandCode {
     UpdateRateLimit = 0x13,
     /// Used to discover the existing device MCTP interfaces
     QuerySupportedInterfaces = 0x14,
+    /// Not supported
+    Unknown = 0xFF,
+}
+
+impl From<u8> for CommandCode {
+    fn from(num: u8) -> CommandCode {
+        match num {
+            0x00 => CommandCode::Reserved,
+            0x01 => CommandCode::SetEndpointID,
+            0x02 => CommandCode::GetEndpointID,
+            0x03 => CommandCode::GetEndpointUUID,
+            0x04 => CommandCode::GetMCTPVersionSupport,
+            0x05 => CommandCode::GetMessageTypeSupport,
+            0x06 => CommandCode::GetVendorDefinedMessageSupport,
+            0x07 => CommandCode::ResolveEndpointID,
+            0x08 => CommandCode::AllocateEndpointIDs,
+            0x09 => CommandCode::RoutingInformationUpdate,
+            0x0A => CommandCode::GetRoutingTableEntries,
+            0x0B => CommandCode::PrepareForEndpointDiscovery,
+            0x0C => CommandCode::EndpointDiscovery,
+            0x0D => CommandCode::DiscoveryNotify,
+            0x0E => CommandCode::GetNetworkID,
+            0x0F => CommandCode::QueryHop,
+            0x10 => CommandCode::ResolveUUID,
+            0x11 => CommandCode::QueryRateLimit,
+            0x12 => CommandCode::RequestTXRateLimit,
+            0x13 => CommandCode::UpdateRateLimit,
+            0x14 => CommandCode::QuerySupportedInterfaces,
+            _ => CommandCode::Unknown,
+        }
+    }
 }
 
 /// The type of version query when calling GetMCTPVersionSupport

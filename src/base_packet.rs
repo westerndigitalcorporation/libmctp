@@ -3,6 +3,7 @@
 use crate::mctp_traits::MCTPHeader;
 
 /// The Message Type of the MCTP packet
+#[derive(Debug, PartialEq)]
 pub enum MessageType {
     /// A control message
     MCtpControl = 0x00,
@@ -12,6 +13,19 @@ pub enum MessageType {
     /// Message type used to support VDMs where the vendor is identified using
     /// an IANA-based vendor ID.
     VendorDefinedIANA = 0x7F,
+    /// Internal use
+    Invalid = 0xFF,
+}
+
+impl From<u8> for MessageType {
+    fn from(num: u8) -> MessageType {
+        match num {
+            0x00 => MessageType::MCtpControl,
+            0x7E => MessageType::VendorDefinedPCI,
+            0x7F => MessageType::VendorDefinedIANA,
+            _ => MessageType::Invalid,
+        }
+    }
 }
 
 bitfield! {
@@ -49,6 +63,11 @@ impl MCTPTransportHeader<[u8; 4]> {
 
         tran_header
     }
+
+    /// Create a new MCTPTransportHeader from an existing buffer.
+    pub fn new_from_buf(buf: [u8; 4]) -> Self {
+        MCTPTransportHeader(buf)
+    }
 }
 
 bitfield! {
@@ -56,7 +75,8 @@ bitfield! {
     pub struct MCTPMessageBodyHeader(MSB0 [u8]);
     u8;
     ic, set_ic: 0, 0;
-    msg_type, set_msg_type: 7, 1;
+    /// The message type
+    pub msg_type, set_msg_type: 7, 1;
 }
 
 impl MCTPMessageBodyHeader<[u8; 1]> {
@@ -74,6 +94,11 @@ impl MCTPMessageBodyHeader<[u8; 1]> {
         body_header.set_msg_type(msg_type as u8);
 
         body_header
+    }
+
+    /// Create a new MCTPMessageBodyHeader from an existing buffer.
+    pub fn new_from_buf(buf: [u8; 1]) -> Self {
+        MCTPMessageBodyHeader(buf)
     }
 }
 

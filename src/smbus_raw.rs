@@ -10,9 +10,9 @@ const HDR_VERSION: u8 = 0b001;
 
 const MCTP_SMBUS_COMMAND_CODE: u8 = 0x0F;
 
-// The MCTP SMBus/I2C Packet Header
 bitfield! {
-    struct MCTPSMBusHeader([u8]);
+    /// The MCTP SMBus/I2C Packet Header
+    pub struct MCTPSMBusHeader([u8]);
     u8;
     dest_read_write, set_dest_read_write: 0, 0;
     dest_slave_addr, set_dest_slave_addr : 7, 1;
@@ -23,17 +23,19 @@ bitfield! {
 }
 
 impl MCTPSMBusHeader<[u8; 4]> {
+    /// Create a new MCTPSMBusHeader
     pub fn new() -> Self {
         let buf = [0; 4];
         MCTPSMBusHeader(buf)
     }
 
+    /// Create a new MCTPSMBusHeader from an already existing buffer
     pub fn new_from_buf(buf: [u8; 4]) -> Self {
         MCTPSMBusHeader(buf)
     }
 }
 
-struct MCTPSMBusPacket<'a> {
+pub(crate) struct MCTPSMBusPacket<'a> {
     smbus_header: MCTPSMBusHeader<[u8; 4]>,
     base_header: MCTPTransportHeader<[u8; 4]>,
     data_bytes: &'a MCTPMessageBody<'a>,
