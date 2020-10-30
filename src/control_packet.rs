@@ -1,4 +1,6 @@
 //! This describes the MCTP Control Message headers and protocols.
+//!
+//! The control packet is described in DSP0236, section 11.
 
 use crate::mctp_traits::MCTPControlMessageRequest;
 
@@ -16,8 +18,8 @@ bitfield! {
 }
 
 bitfield! {
-    /// This is the header Control Message without the completion code. This
-    /// is used for MCTP Control Message requests.
+    /// This is the header Control Message with the completion code. This
+    /// is used for MCTP Control Message responses.
     pub struct MCTPControlMessageResponseHeader(MSB0 [u8]);
     u8;
     /// Is the packet a request?
@@ -39,37 +41,50 @@ pub enum CommandCode {
     GetEndpointID = 0x02,
     /// Retrieves a per-device unique UUID associated with the endpoint.
     GetEndpointUUID = 0x03,
-    /// Lists which versions of the MCTP control protocol are supported on an endpoint.
+    /// Lists which versions of the MCTP control protocol are supported on an
+    /// endpoint.
     GetMCTPVersionSupport = 0x04,
     /// Lists the message types that an endpoint supports.
     GetMessageTypeSupport = 0x05,
-    /// Used to discover an MCTP endpoint’s vendor-specific MCTP extensions and capabilities.
+    /// Used to discover an MCTP endpoint’s vendor-specific MCTP extensions
+    /// and capabilities.
     GetVendorDefinedMessageSupport = 0x06,
     /// Used to get the physical address associated with a given EID.
     ResolveEndpointID = 0x07,
     /// Used by the bus owner to allocate a pool of EIDs to an MCTP bridge
     AllocateEndpointIDs = 0x08,
-    /// Used by the bus owner to extend or update the routing information that is maintained by an MCTP bridge
+    /// Used by the bus owner to extend or update the routing information that
+    /// is maintained by an MCTP bridge
     RoutingInformationUpdate = 0x09,
-    /// Used to request an MCTP bridge to return data corresponding to its present routing table entries
+    /// Used to request an MCTP bridge to return data corresponding to its
+    /// present routing table entries
     GetRoutingTableEntries = 0x0A,
-    /// Used to direct endpoints to clear their “discovered”flags to enable them to respond to the Endpoint Discovery command
+    /// Used to direct endpoints to clear their “discovered”flags to enable
+    /// them to respond to the Endpoint Discovery command
     PrepareForEndpointDiscovery = 0x0B,
-    /// Used to discover MCTP-capable devices on a bus, provided that another discovery mechanism is not defined for the particular physical medium
+    /// Used to discover MCTP-capable devices on a bus, provided that another
+    /// discovery mechanism is not defined for the particular physical medium
     EndpointDiscovery = 0x0C,
-    /// Used to notify the bus owner that an MCTP device has become available on the bus
+    /// Used to notify the bus owner that an MCTP device has become available
+    /// on the bus
     DiscoveryNotify = 0x0D,
     /// Used to get the MCTP networkID
     GetNetworkID = 0x0E,
-    /// Used to discover what bridges, if any, are in the path to a given target endpoint and what transmission unit sizes the bridges will pass for a given message type when routing to the target endpoint
+    /// Used to discover what bridges, if any, are in the path to a given
+    /// target endpoint and what transmission unit sizes the bridges will pass
+    /// for a given message type when routing to the target endpoint
     QueryHop = 0x0F,
-    /// Used by endpoints to find another endpoint matching an endpoint that uses a specific UUID
+    /// Used by endpoints to find another endpoint matching an endpoint that
+    /// uses a specific UUID
     ResolveUUID = 0x10,
-    /// Used to discover the data rate limit settings of the given target for incoming messages
+    /// Used to discover the data rate limit settings of the given target
+    /// for incoming messages
     QueryRateLimit = 0x11,
-    /// Used to request the allowed transmit data rate limit forthe given endpoint for outgoing messages
+    /// Used to request the allowed transmit data rate limit for the given
+    /// endpoint for outgoing messages
     RequestTXRateLimit = 0x12,
-    /// Used to update the receiving side on change to the transmit data rate which was not requested by the receiver
+    /// Used to update the receiving side on change to the transmit data
+    /// rate which was not requested by the receiver
     UpdateRateLimit = 0x13,
     /// Used to discover the existing device MCTP interfaces
     QuerySupportedInterfaces = 0x14,
@@ -106,19 +121,30 @@ impl From<u8> for CommandCode {
     }
 }
 
-/// This field is only present in Response messages. This field contains a value that indicates whether the response completed normally. If the command did not complete normally, the value can provide additional information regarding the error condition. The values for completion codes are specified in Table 13.
+/// This field is only present in Response messages. This field contains a
+/// value that indicates whether the response completed normally. If the
+/// command did not complete normally, the value can provide additional
+/// information regarding the error condition. The values for completion
+/// codes are specified in Table 13.
 pub enum CompletionCode {
     /// The Request was accepted and completed normally
     Success = 0x00,
-    /// This is a generic failure message. (It should not be used when a more specific result code applies.)
+    /// This is a generic failure message. (It should not be used when a
+    /// more specific result code applies.)
     Error = 0x01,
-    /// The packet payload contained invalid data or an illegal parameter value.
+    /// The packet payload contained invalid data or an illegal parameter
+    /// value.
     ErrorInvalidData = 0x02,
-    /// The message length was invalid. (The Message body was larger or smaller than expected for the particular request.)
+    /// The message length was invalid. (The Message body was larger or
+    /// smaller than expected for the particular request.)
     ErrorInvalidLength = 0x03,
-    /// The Receiver is in a transient state where it is not ready to receive the corresponding message
+    /// The Receiver is in a transient state where it is not ready to
+    /// receive the corresponding message
     ErrorNotReady = 0x04,
-    /// The command field in the control type of the received message is unspecified or not supported on this endpoint. This completion code shall be returned for any unsupported command values received in MCTP control Request messages.
+    /// The command field in the control type of the received message
+    /// is unspecified or not supported on this endpoint. This completion
+    /// code shall be returned for any unsupported command values received
+    /// in MCTP control Request messages.
     ErrorUnsupportedCmd = 0x05,
 }
 

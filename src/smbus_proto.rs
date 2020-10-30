@@ -1,4 +1,6 @@
 //! The implementation for the SMBus protocol
+//!
+//! This is the low level packet construction
 
 use crate::base_packet::{MCTPMessageBody, MCTPTransportHeader};
 use crate::mctp_traits::MCTPHeader;
@@ -6,6 +8,7 @@ use crate::mctp_traits::MCTPHeader;
 /// The header version used by SMBus
 pub const HDR_VERSION: u8 = 0b001;
 
+/// INdicates that this is an SMBus command code
 pub(crate) const MCTP_SMBUS_COMMAND_CODE: u8 = 0x0F;
 
 bitfield! {

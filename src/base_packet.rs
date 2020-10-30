@@ -1,7 +1,7 @@
-//! This defines the structs and helpers for the standard packet types.
+//! This defines the MCTP base protocol common fields.
 //!
-//! This provides the low level structs for creating MCTP packets.
-//! This is generally only used by libMCTP.
+//! This provides the MCTP base protocol common fields. These are used by
+//! all implementations and are described in DSP0236 table 1.
 
 use crate::mctp_traits::MCTPHeader;
 
@@ -68,6 +68,8 @@ impl MCTPTransportHeader<[u8; 4]> {
     }
 
     /// Create a new MCTPTransportHeader from an existing buffer.
+    ///
+    /// `buffer`: The existing buffer for the MCTPTransportHeader
     pub fn new_from_buf(buf: [u8; 4]) -> Self {
         MCTPTransportHeader(buf)
     }

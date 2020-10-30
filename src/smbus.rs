@@ -97,7 +97,7 @@ impl MCTPSMBusContext {
     }
 
     /// Decodes a MCTP request packet
-    pub fn decode_mctp_control<'a>(
+    fn decode_mctp_control<'a>(
         &self,
         smbus_header: MCTPSMBusHeader<[u8; 4]>,
         base_header: MCTPTransportHeader<[u8; 4]>,
