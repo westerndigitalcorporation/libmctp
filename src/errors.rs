@@ -1,6 +1,8 @@
 //! The error types used by MCTP and libMCTP
 
-#[derive(Debug)]
+use crate::control_packet::CompletionCode;
+
+#[derive(Debug, PartialEq)]
 /// The possible Control Message errors
 pub enum ControlMessageError {
     /// Unknown
@@ -9,9 +11,11 @@ pub enum ControlMessageError {
     InvalidRequestDataLength,
     /// The packet sent has an invalid control header
     InvalidControlHeader,
+    ///
+    UnsuccessfulCompletionCode(CompletionCode),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 /// The possible errors when decoding a packet
 pub enum DecodeError {
     /// Unknown error

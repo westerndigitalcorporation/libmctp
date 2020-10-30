@@ -3,7 +3,7 @@
 use crate::base_packet::{
     MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader, MessageType,
 };
-use crate::control_packet::{CommandCode, MCTPControlMessageRequestHeader, MCTPVersionQuery};
+use crate::control_packet::{CommandCode, MCTPControlMessageHeader, MCTPVersionQuery};
 use crate::mctp_traits::MCTPHeader;
 use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket, HDR_VERSION, MCTP_SMBUS_COMMAND_CODE};
 
@@ -76,7 +76,7 @@ impl MCTPSMBusContextRequest {
         let header: MCTPMessageBodyHeader<[u8; 1]> =
             MCTPMessageBodyHeader::new(false, MessageType::MCtpControl);
         let command_header =
-            MCTPControlMessageRequestHeader::new(false, 0, CommandCode::GetMCTPVersionSupport);
+            MCTPControlMessageHeader::new(true, false, 0, CommandCode::GetMCTPVersionSupport);
         let message_header = Some(&(command_header.0[..]));
         let message_data: [u8; 1] = [query as u8];
 

@@ -34,7 +34,7 @@
 use crate::base_packet::{
     MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader, MessageType,
 };
-use crate::control_packet::{MCTPControlMessageRequestHeader, MCTPControlMessageResponseHeader};
+use crate::control_packet::{CompletionCode, MCTPControlMessageHeader};
 use crate::errors::{ControlMessageError, DecodeError};
 use crate::mctp_traits::MCTPControlMessageRequest;
 use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket};
@@ -104,44 +104,38 @@ impl MCTPSMBusContext {
         body_header: MCTPMessageBodyHeader<[u8; 1]>,
         buf: &'a [u8],
     ) -> Result<(MessageType, &'a [u8]), (MessageType, DecodeError)> {
-        // Decode a request
-        let mut control_message_header_request_buf: [u8; 2] = [0; 2];
-        control_message_header_request_buf.copy_from_slice(&buf[0..2]);
-        let control_message_header_request =
-            MCTPControlMessageRequestHeader::new_from_buf(control_message_header_request_buf);
+        // Decode the header
+        let mut control_message_header_buf: [u8; 2] = [0; 2];
+        control_message_header_buf.copy_from_slice(&buf[0..2]);
+        let control_message_header =
+            MCTPControlMessageHeader::new_from_buf(control_message_header_buf);
 
-        // Decode a response
-        let mut control_message_header_response_buf: [u8; 3] = [0; 3];
-        control_message_header_response_buf.copy_from_slice(&buf[0..3]);
-        let control_message_header_response =
-            MCTPControlMessageResponseHeader::new_from_buf(control_message_header_response_buf);
-
-        let (payload_offset, body_additional_header_len, body_additional_header_buf) =
-            match control_message_header_request.rq() {
-                1 => {
-                    // Request
-                    (
-                        2,
-                        control_message_header_request.get_request_data_len(),
-                        Some(&control_message_header_request.0[..]),
-                    )
-                }
-                0 => {
-                    // Response
-                    (
-                        3,
-                        control_message_header_response.get_response_data_len(),
-                        Some(&control_message_header_response.0[..]),
-                    )
-                }
-                _ => {
+        let (payload_offset, body_additional_header_len) = match control_message_header.rq() {
+            1 => {
+                // Request
+                (2, control_message_header.get_request_data_len())
+            }
+            0 => {
+                // Response
+                if buf[2] != CompletionCode::Success as u8 {
                     return Err((
                         MessageType::MCtpControl,
-                        DecodeError::ControlMessage(ControlMessageError::InvalidControlHeader),
+                        DecodeError::ControlMessage(
+                            ControlMessageError::UnsuccessfulCompletionCode(buf[2].into()),
+                        ),
                     ));
                 }
-            };
+                (3, control_message_header.get_response_data_len())
+            }
+            _ => {
+                return Err((
+                    MessageType::MCtpControl,
+                    DecodeError::ControlMessage(ControlMessageError::InvalidControlHeader),
+                ));
+            }
+        };
 
+        let body_additional_header_buf = Some(&control_message_header.0[..]);
         let data = &buf[payload_offset..];
 
         if data.len() != body_additional_header_len {
@@ -208,5 +202,38 @@ mod smbus_tests {
         assert_eq!(payload[2], 0xF3 as u8);
         // Update 1
         assert_eq!(payload[3], 0xF1 as u8);
+    }
+
+    #[test]
+    fn test_decode_invalid_response() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x23;
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID);
+        let mut buf: [u8; 17] = [0; 17];
+
+        let _len = ctx
+            .get_response()
+            .get_mctp_version_support(DEST_ID, &mut buf);
+
+        // Set the packet as invalid
+        buf[11] = CompletionCode::ErrorInvalidData as u8;
+
+        let error = ctx.decode_packet(&buf);
+
+        match error {
+            Ok(_) => {
+                panic!("Didn't get the error we expect");
+            }
+            Err((msg_type, decode_error)) => {
+                assert_eq!(msg_type, MessageType::MCtpControl);
+                assert_eq!(
+                    decode_error,
+                    DecodeError::ControlMessage(ControlMessageError::UnsuccessfulCompletionCode(
+                        CompletionCode::ErrorInvalidData
+                    ))
+                );
+            }
+        }
     }
 }

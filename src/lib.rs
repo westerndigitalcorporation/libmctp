@@ -34,7 +34,7 @@ pub mod smbus_response;
 #[doc(inline)]
 pub use crate::base_packet::MessageType;
 #[doc(inline)]
-pub use crate::control_packet::MCTPControlMessageRequestHeader;
+pub use crate::control_packet::MCTPControlMessageHeader;
 #[doc(inline)]
 pub use crate::smbus::MCTPSMBusContext;
 #[doc(inline)]

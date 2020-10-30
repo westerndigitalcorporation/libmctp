@@ -3,7 +3,7 @@
 use crate::base_packet::{
     MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader, MessageType,
 };
-use crate::control_packet::{CommandCode, CompletionCode, MCTPControlMessageResponseHeader};
+use crate::control_packet::{CommandCode, CompletionCode, MCTPControlMessageHeader};
 use crate::mctp_traits::MCTPHeader;
 use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket, HDR_VERSION, MCTP_SMBUS_COMMAND_CODE};
 
@@ -70,17 +70,14 @@ impl MCTPSMBusContextResponse {
 
         let header: MCTPMessageBodyHeader<[u8; 1]> =
             MCTPMessageBodyHeader::new(false, MessageType::MCtpControl);
-        let command_header = MCTPControlMessageResponseHeader::new(
-            false,
-            0,
-            CommandCode::GetMCTPVersionSupport,
-            CompletionCode::Success,
-        );
+        let command_header =
+            MCTPControlMessageHeader::new(false, false, 0, CommandCode::GetMCTPVersionSupport);
         let message_header = Some(&(command_header.0[..]));
         // Return
+        // Completion code
         // Version Number entry count: 1
         // Version: 1.3.1
-        let message_data: [u8; 5] = [1, 0xF1, 0xF3, 0xF1, 0x00];
+        let message_data: [u8; 6] = [CompletionCode::Success as u8, 1, 0xF1, 0xF3, 0xF1, 0x00];
 
         let body = MCTPMessageBody::new(header, &message_header, &message_data, None);
 
