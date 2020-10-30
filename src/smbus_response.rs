@@ -162,7 +162,7 @@ mod smbus_response_tests {
         // IC and Message Type
         assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
 
         // Command Code
         assert_eq!(buf[10], CommandCode::GetMCTPVersionSupport as u8);

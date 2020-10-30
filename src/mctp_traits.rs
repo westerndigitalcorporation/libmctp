@@ -48,4 +48,32 @@ pub(crate) trait MCTPControlMessageRequest {
             CommandCode::Unknown => unimplemented!(),
         }
     }
+
+    /// Get the length of the response data command
+    fn get_response_data_len(&self) -> usize {
+        match self.command_code().into() {
+            CommandCode::Reserved => unimplemented!(),
+            CommandCode::SetEndpointID => unimplemented!(),
+            CommandCode::GetEndpointID => unimplemented!(),
+            CommandCode::GetEndpointUUID => unimplemented!(),
+            CommandCode::GetMCTPVersionSupport => 5,
+            CommandCode::GetMessageTypeSupport => unimplemented!(),
+            CommandCode::GetVendorDefinedMessageSupport => unimplemented!(),
+            CommandCode::ResolveEndpointID => unimplemented!(),
+            CommandCode::AllocateEndpointIDs => unimplemented!(),
+            CommandCode::RoutingInformationUpdate => unimplemented!(),
+            CommandCode::GetRoutingTableEntries => unimplemented!(),
+            CommandCode::PrepareForEndpointDiscovery => unimplemented!(),
+            CommandCode::EndpointDiscovery => unimplemented!(),
+            CommandCode::DiscoveryNotify => unimplemented!(),
+            CommandCode::GetNetworkID => unimplemented!(),
+            CommandCode::QueryHop => unimplemented!(),
+            CommandCode::ResolveUUID => unimplemented!(),
+            CommandCode::QueryRateLimit => unimplemented!(),
+            CommandCode::RequestTXRateLimit => unimplemented!(),
+            CommandCode::UpdateRateLimit => unimplemented!(),
+            CommandCode::QuerySupportedInterfaces => unimplemented!(),
+            CommandCode::Unknown => unimplemented!(),
+        }
+    }
 }

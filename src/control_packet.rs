@@ -7,7 +7,8 @@ bitfield! {
     /// is used for MCTP Control Message requests.
     pub struct MCTPControlMessageRequestHeader(MSB0 [u8]);
     u8;
-    rq, set_rq : 0, 0;
+    /// Is the packet a request?
+    pub rq, set_rq : 0, 0;
     d, set_d: 1, 1;
     rsvd, _: 2, 2;
     instance_id, set_instance_id: 7, 3;
@@ -19,7 +20,8 @@ bitfield! {
     /// is used for MCTP Control Message requests.
     pub struct MCTPControlMessageResponseHeader(MSB0 [u8]);
     u8;
-    rq, set_rq : 0, 0;
+    /// Is the packet a request?
+    pub rq, set_rq : 0, 0;
     d, set_d: 1, 1;
     rsvd, _: 2, 2;
     instance_id, set_instance_id: 7, 3;
@@ -212,7 +214,7 @@ impl MCTPControlMessageResponseHeader<[u8; 3]> {
         let buf = [0; 3];
         let mut con_header = MCTPControlMessageResponseHeader(buf);
 
-        con_header.set_rq(1);
+        con_header.set_rq(0);
         con_header.set_d(datagram as u8);
         con_header.set_instance_id(instance_id);
         con_header.set_command_code(command_code as u8);

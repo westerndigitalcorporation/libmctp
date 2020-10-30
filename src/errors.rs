@@ -7,6 +7,8 @@ pub enum ControlMessageError {
     Unknown,
     /// The control request packet data length is invalid
     InvalidRequestDataLength,
+    /// The packet sent has an invalid control header
+    InvalidControlHeader,
 }
 
 #[derive(Debug)]
