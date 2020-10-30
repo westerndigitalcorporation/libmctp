@@ -70,25 +70,41 @@ impl MCTPSMBusContext {
         &self.response
     }
 
-    /// Decodes a MCTP packet
-    pub fn decode_packet<'a>(
+    fn get_smbus_headers<'a>(
         &self,
-        buf: &'a [u8],
-    ) -> Result<(MessageType, &'a [u8]), (MessageType, DecodeError)> {
-        // buf is a MCTPSMBusPacket
+        packet: &'a [u8],
+    ) -> Result<
+        (
+            MCTPSMBusHeader<[u8; 4]>,
+            MCTPTransportHeader<[u8; 4]>,
+            MCTPMessageBodyHeader<[u8; 1]>,
+        ),
+        (MessageType, DecodeError),
+    > {
+        // packet is a MCTPSMBusPacket
         let mut smbus_header_buf: [u8; 4] = [0; 4];
-        smbus_header_buf.copy_from_slice(&buf[0..4]);
+        smbus_header_buf.copy_from_slice(&packet[0..4]);
         let smbus_header = MCTPSMBusHeader::new_from_buf(smbus_header_buf);
 
         let mut base_header_buf: [u8; 4] = [0; 4];
-        base_header_buf.copy_from_slice(&buf[4..8]);
+        base_header_buf.copy_from_slice(&packet[4..8]);
         let base_header = MCTPTransportHeader::new_from_buf(base_header_buf);
 
-        let body_header = MCTPMessageBodyHeader::new_from_buf([buf[8]]);
+        let body_header = MCTPMessageBodyHeader::new_from_buf([packet[8]]);
+
+        Ok((smbus_header, base_header, body_header))
+    }
+
+    /// Decodes a MCTP packet
+    pub fn decode_packet<'a>(
+        &self,
+        packet: &'a [u8],
+    ) -> Result<(MessageType, &'a [u8]), (MessageType, DecodeError)> {
+        let (smbus_header, base_header, body_header) = self.get_smbus_headers(packet)?;
 
         match body_header.msg_type().into() {
             MessageType::MCtpControl => {
-                self.decode_mctp_control(smbus_header, base_header, body_header, &buf[9..])
+                self.decode_mctp_control(&smbus_header, &base_header, &body_header, &packet[9..])
             }
             MessageType::VendorDefinedPCI => unimplemented!(),
             MessageType::VendorDefinedIANA => unimplemented!(),
@@ -96,17 +112,16 @@ impl MCTPSMBusContext {
         }
     }
 
-    /// Decodes a MCTP request packet
-    fn decode_mctp_control<'a>(
+    fn get_mctp_control_packet<'a, 'b>(
         &self,
-        smbus_header: MCTPSMBusHeader<[u8; 4]>,
-        base_header: MCTPTransportHeader<[u8; 4]>,
-        body_header: MCTPMessageBodyHeader<[u8; 1]>,
-        buf: &'a [u8],
-    ) -> Result<(MessageType, &'a [u8]), (MessageType, DecodeError)> {
+        _smbus_header: &MCTPSMBusHeader<[u8; 4]>,
+        _base_header: &MCTPTransportHeader<[u8; 4]>,
+        body_header: &'b MCTPMessageBodyHeader<[u8; 1]>,
+        packet: &'a [u8],
+    ) -> Result<MCTPMessageBody<'a, 'b>, (MessageType, DecodeError)> {
         // Decode the header
         let mut control_message_header_buf: [u8; 2] = [0; 2];
-        control_message_header_buf.copy_from_slice(&buf[0..2]);
+        control_message_header_buf.copy_from_slice(&packet[0..2]);
         let control_message_header =
             MCTPControlMessageHeader::new_from_buf(control_message_header_buf);
 
@@ -117,11 +132,11 @@ impl MCTPSMBusContext {
             }
             0 => {
                 // Response
-                if buf[2] != CompletionCode::Success as u8 {
+                if packet[2] != CompletionCode::Success as u8 {
                     return Err((
                         MessageType::MCtpControl,
                         DecodeError::ControlMessage(
-                            ControlMessageError::UnsuccessfulCompletionCode(buf[2].into()),
+                            ControlMessageError::UnsuccessfulCompletionCode(packet[2].into()),
                         ),
                     ));
                 }
@@ -135,8 +150,7 @@ impl MCTPSMBusContext {
             }
         };
 
-        let body_additional_header_buf = Some(&control_message_header.0[..]);
-        let data = &buf[payload_offset..];
+        let data = &packet[payload_offset..];
 
         if data.len() != body_additional_header_len {
             return Err((
@@ -145,11 +159,67 @@ impl MCTPSMBusContext {
             ));
         }
 
-        let body = MCTPMessageBody::new(body_header, &body_additional_header_buf, data, None);
+        Ok(MCTPMessageBody::new(
+            body_header,
+            Some(&packet[0..2]),
+            data,
+            None,
+        ))
+    }
 
-        let _packet = MCTPSMBusPacket::new(smbus_header, base_header, &body);
+    /// Decodes a MCTP request packet
+    fn decode_mctp_control<'a, 'b>(
+        &self,
+        smbus_header: &MCTPSMBusHeader<[u8; 4]>,
+        base_header: &MCTPTransportHeader<[u8; 4]>,
+        body_header: &'b MCTPMessageBodyHeader<[u8; 1]>,
+        packet: &'a [u8],
+    ) -> Result<(MessageType, &'a [u8]), (MessageType, DecodeError)> {
+        let body = self.get_mctp_control_packet(smbus_header, base_header, body_header, packet)?;
+        Ok((MessageType::MCtpControl, body.data))
+    }
 
-        Ok((MessageType::MCtpControl, data))
+    /// This function first decodes the packet supplied in the `packet` argument.
+    /// This is done using the `decode_packet()` function.
+    /// If this packet is a request then the `response_buf` is populated with
+    /// a response to the request.
+    ///
+    /// On success the first two arguments in the `Ok()` result are the same as
+    /// the return from the `decode_packet()` function. The third argument is
+    /// an option. If `None` then `response_buf` wasn't changed because the
+    /// `packet` was not a request. If `Some` it contains the length of the
+    /// data written in the `response_buf`.
+    pub fn process_packet<'a, 'b>(
+        &self,
+        packet: &'a [u8],
+        _response_buf: &'b [u8],
+    ) -> Result<(MessageType, &'a [u8], Option<usize>), (MessageType, DecodeError)> {
+        let (msg_type, payload) = self.decode_packet(packet)?;
+
+        match msg_type {
+            MessageType::MCtpControl => {
+                let (mut smbus_header, base_header, body_header) =
+                    self.get_smbus_headers(packet)?;
+                let body = self.get_mctp_control_packet(
+                    &smbus_header,
+                    &base_header,
+                    &body_header,
+                    packet,
+                )?;
+                let _packet = MCTPSMBusPacket::new(&mut smbus_header, &base_header, &body);
+
+                Ok((msg_type, payload, None))
+            }
+            MessageType::VendorDefinedPCI => {
+                // Vendor defined, we don't know what to do
+                Ok((msg_type, payload, None))
+            }
+            MessageType::VendorDefinedIANA => {
+                // Vendor defined, we don't know what to do
+                Ok((msg_type, payload, None))
+            }
+            _ => Err((MessageType::Invalid, DecodeError::Unknown)),
+        }
     }
 }
 

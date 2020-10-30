@@ -70,7 +70,7 @@ impl MCTPSMBusContextRequest {
         query: MCTPVersionQuery,
         buf: &mut [u8],
     ) -> usize {
-        let smbus_header = self.generate_smbus_header(dest_addr);
+        let mut smbus_header = self.generate_smbus_header(dest_addr);
         let base_header = self.generate_transport_header(dest_addr);
 
         let header: MCTPMessageBodyHeader<[u8; 1]> =
@@ -80,9 +80,9 @@ impl MCTPSMBusContextRequest {
         let message_header = Some(&(command_header.0[..]));
         let message_data: [u8; 1] = [query as u8];
 
-        let body = MCTPMessageBody::new(header, &message_header, &message_data, None);
+        let body = MCTPMessageBody::new(&header, message_header, &message_data, None);
 
-        let packet = MCTPSMBusPacket::new(smbus_header, base_header, &body);
+        let packet = MCTPSMBusPacket::new(&mut smbus_header, &base_header, &body);
 
         packet.to_raw_bytes(buf)
     }

@@ -108,18 +108,18 @@ impl MCTPMessageBodyHeader<[u8; 1]> {
 }
 
 /// The MCTP Message Body, this is included inside the high level packet.
-pub struct MCTPMessageBody<'a> {
-    header: MCTPMessageBodyHeader<[u8; 1]>,
-    additional_header: &'a Option<&'a [u8]>,
-    data: &'a [u8],
+pub struct MCTPMessageBody<'a, 'b> {
+    header: &'b MCTPMessageBodyHeader<[u8; 1]>,
+    additional_header: Option<&'a [u8]>,
+    pub(crate) data: &'a [u8],
     mic: Option<&'a [u8]>,
 }
 
-impl<'a> MCTPMessageBody<'a> {
+impl<'a, 'b> MCTPMessageBody<'a, 'b> {
     /// Creates a new MCTPMessageBody.
     pub fn new(
-        header: MCTPMessageBodyHeader<[u8; 1]>,
-        additional_header: &'a Option<&'a [u8]>,
+        header: &'b MCTPMessageBodyHeader<[u8; 1]>,
+        additional_header: Option<&'a [u8]>,
         data: &'a [u8],
         mic: Option<&'a [u8]>,
     ) -> Self {
@@ -132,7 +132,7 @@ impl<'a> MCTPMessageBody<'a> {
     }
 }
 
-impl<'a> MCTPHeader for MCTPMessageBody<'a> {
+impl<'a, 'b> MCTPHeader for MCTPMessageBody<'a, 'b> {
     /// Return the number of bytes used by the packet.
     fn len(&self) -> usize {
         let mut offset = 0;
@@ -218,7 +218,7 @@ mod smbus_tests {
         let data: [u8; 4] = [0x11; 4];
         let mic = None;
 
-        let body = MCTPMessageBody::new(header, &additional_header, &data, mic);
+        let body = MCTPMessageBody::new(&header, additional_header, &data, mic);
         let mut buf: [u8; 32] = [0; 32];
 
         let len = body.to_raw_bytes(&mut buf);

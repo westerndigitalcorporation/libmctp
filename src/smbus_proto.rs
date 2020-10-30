@@ -48,17 +48,17 @@ impl Default for MCTPSMBusHeader<[u8; 4]> {
     }
 }
 
-pub(crate) struct MCTPSMBusPacket<'a> {
-    smbus_header: MCTPSMBusHeader<[u8; 4]>,
-    base_header: MCTPTransportHeader<[u8; 4]>,
-    data_bytes: &'a MCTPMessageBody<'a>,
+pub(crate) struct MCTPSMBusPacket<'a, 'b> {
+    smbus_header: &'a mut MCTPSMBusHeader<[u8; 4]>,
+    base_header: &'a MCTPTransportHeader<[u8; 4]>,
+    data_bytes: &'a MCTPMessageBody<'a, 'b>,
 }
 
-impl<'a> MCTPSMBusPacket<'a> {
+impl<'a, 'b> MCTPSMBusPacket<'a, 'b> {
     pub fn new(
-        smbus_header: MCTPSMBusHeader<[u8; 4]>,
-        base_header: MCTPTransportHeader<[u8; 4]>,
-        data_bytes: &'a MCTPMessageBody,
+        smbus_header: &'a mut MCTPSMBusHeader<[u8; 4]>,
+        base_header: &'a MCTPTransportHeader<[u8; 4]>,
+        data_bytes: &'b MCTPMessageBody,
     ) -> Self {
         let mut packet = Self {
             smbus_header,
@@ -76,7 +76,7 @@ impl<'a> MCTPSMBusPacket<'a> {
     }
 }
 
-impl<'a> MCTPHeader for MCTPSMBusPacket<'a> {
+impl<'a, 'b> MCTPHeader for MCTPSMBusPacket<'a, 'b> {
     /// Return the number of bytes used by the packet.
     fn len(&self) -> usize {
         let mut size = 0;
