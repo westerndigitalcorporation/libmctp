@@ -34,12 +34,26 @@
 use crate::base_packet::{
     MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader, MessageType,
 };
-use crate::control_packet::{CompletionCode, MCTPControlMessageHeader};
+use crate::control_packet::{CommandCode, CompletionCode, MCTPControlMessageHeader};
 use crate::errors::{ControlMessageError, DecodeError};
 use crate::mctp_traits::MCTPControlMessageRequest;
 use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket};
 use crate::smbus_request::MCTPSMBusContextRequest;
 use crate::smbus_response::MCTPSMBusContextResponse;
+
+type SMBusHeaders = (
+    MCTPSMBusHeader<[u8; 4]>,
+    MCTPTransportHeader<[u8; 4]>,
+    MCTPMessageBodyHeader<[u8; 1]>,
+);
+
+type ControlDecodedPacketData<'a> = (MessageType, &'a [u8]);
+
+type ControlRawPacketData<'a, 'b> = (
+    MCTPControlMessageHeader<[u8; 2]>,
+    Option<CompletionCode>,
+    MCTPMessageBody<'a, 'b>,
+);
 
 /// The global context for MCTP SMBus operations
 pub struct MCTPSMBusContext {
@@ -70,17 +84,7 @@ impl MCTPSMBusContext {
         &self.response
     }
 
-    fn get_smbus_headers<'a>(
-        &self,
-        packet: &'a [u8],
-    ) -> Result<
-        (
-            MCTPSMBusHeader<[u8; 4]>,
-            MCTPTransportHeader<[u8; 4]>,
-            MCTPMessageBodyHeader<[u8; 1]>,
-        ),
-        (MessageType, DecodeError),
-    > {
+    fn get_smbus_headers(&self, packet: &[u8]) -> Result<SMBusHeaders, (MessageType, DecodeError)> {
         // packet is a MCTPSMBusPacket
         let mut smbus_header_buf: [u8; 4] = [0; 4];
         smbus_header_buf.copy_from_slice(&packet[0..4]);
@@ -99,7 +103,7 @@ impl MCTPSMBusContext {
     pub fn decode_packet<'a>(
         &self,
         packet: &'a [u8],
-    ) -> Result<(MessageType, &'a [u8]), (MessageType, DecodeError)> {
+    ) -> Result<ControlDecodedPacketData<'a>, (MessageType, DecodeError)> {
         let (smbus_header, base_header, body_header) = self.get_smbus_headers(packet)?;
 
         match body_header.msg_type().into() {
@@ -118,37 +122,42 @@ impl MCTPSMBusContext {
         _base_header: &MCTPTransportHeader<[u8; 4]>,
         body_header: &'b MCTPMessageBodyHeader<[u8; 1]>,
         packet: &'a [u8],
-    ) -> Result<MCTPMessageBody<'a, 'b>, (MessageType, DecodeError)> {
+    ) -> Result<ControlRawPacketData<'a, 'b>, (MessageType, DecodeError)> {
         // Decode the header
         let mut control_message_header_buf: [u8; 2] = [0; 2];
         control_message_header_buf.copy_from_slice(&packet[0..2]);
         let control_message_header =
             MCTPControlMessageHeader::new_from_buf(control_message_header_buf);
 
-        let (payload_offset, body_additional_header_len) = match control_message_header.rq() {
-            1 => {
-                // Request
-                (2, control_message_header.get_request_data_len())
-            }
-            0 => {
-                // Response
-                if packet[2] != CompletionCode::Success as u8 {
+        let (payload_offset, compl_comm, body_additional_header_len) =
+            match control_message_header.rq() {
+                1 => {
+                    // Request
+                    (2, None, control_message_header.get_request_data_len())
+                }
+                0 => {
+                    // Response
+                    if packet[2] != CompletionCode::Success as u8 {
+                        return Err((
+                            MessageType::MCtpControl,
+                            DecodeError::ControlMessage(
+                                ControlMessageError::UnsuccessfulCompletionCode(packet[2].into()),
+                            ),
+                        ));
+                    }
+                    (
+                        3,
+                        Some(packet[2].into()),
+                        control_message_header.get_response_data_len(),
+                    )
+                }
+                _ => {
                     return Err((
                         MessageType::MCtpControl,
-                        DecodeError::ControlMessage(
-                            ControlMessageError::UnsuccessfulCompletionCode(packet[2].into()),
-                        ),
+                        DecodeError::ControlMessage(ControlMessageError::InvalidControlHeader),
                     ));
                 }
-                (3, control_message_header.get_response_data_len())
-            }
-            _ => {
-                return Err((
-                    MessageType::MCtpControl,
-                    DecodeError::ControlMessage(ControlMessageError::InvalidControlHeader),
-                ));
-            }
-        };
+            };
 
         let data = &packet[payload_offset..];
 
@@ -159,11 +168,10 @@ impl MCTPSMBusContext {
             ));
         }
 
-        Ok(MCTPMessageBody::new(
-            body_header,
-            Some(&packet[0..2]),
-            data,
-            None,
+        Ok((
+            control_message_header,
+            compl_comm,
+            MCTPMessageBody::new(body_header, Some(&packet[0..payload_offset]), data, None),
         ))
     }
 
@@ -174,8 +182,9 @@ impl MCTPSMBusContext {
         base_header: &MCTPTransportHeader<[u8; 4]>,
         body_header: &'b MCTPMessageBodyHeader<[u8; 1]>,
         packet: &'a [u8],
-    ) -> Result<(MessageType, &'a [u8]), (MessageType, DecodeError)> {
-        let body = self.get_mctp_control_packet(smbus_header, base_header, body_header, packet)?;
+    ) -> Result<ControlDecodedPacketData<'a>, (MessageType, DecodeError)> {
+        let (_header, _compl_com, body) =
+            self.get_mctp_control_packet(smbus_header, base_header, body_header, packet)?;
         Ok((MessageType::MCtpControl, body.data))
     }
 
@@ -192,31 +201,69 @@ impl MCTPSMBusContext {
     pub fn process_packet<'a, 'b>(
         &self,
         packet: &'a [u8],
-        _response_buf: &'b [u8],
-    ) -> Result<(MessageType, &'a [u8], Option<usize>), (MessageType, DecodeError)> {
+        response_buf: &'b mut [u8],
+    ) -> Result<(ControlDecodedPacketData<'a>, Option<usize>), (MessageType, DecodeError)> {
         let (msg_type, payload) = self.decode_packet(packet)?;
 
         match msg_type {
             MessageType::MCtpControl => {
                 let (mut smbus_header, base_header, body_header) =
                     self.get_smbus_headers(packet)?;
-                let body = self.get_mctp_control_packet(
+
+                let (header, compl_com, body) = self.get_mctp_control_packet(
                     &smbus_header,
                     &base_header,
                     &body_header,
-                    packet,
+                    &packet[9..],
                 )?;
+
                 let _packet = MCTPSMBusPacket::new(&mut smbus_header, &base_header, &body);
 
-                Ok((msg_type, payload, None))
+                if compl_com.is_none() {
+                    let len;
+
+                    match header.command_code().into() {
+                        CommandCode::Reserved => unimplemented!(),
+                        CommandCode::SetEndpointID => unimplemented!(),
+                        CommandCode::GetEndpointID => unimplemented!(),
+                        CommandCode::GetEndpointUUID => unimplemented!(),
+                        CommandCode::GetMCTPVersionSupport => {
+                            len = self.get_response().get_mctp_version_support(
+                                base_header.source_endpoint_id(),
+                                response_buf,
+                            );
+                        }
+                        CommandCode::GetMessageTypeSupport => unimplemented!(),
+                        CommandCode::GetVendorDefinedMessageSupport => unimplemented!(),
+                        CommandCode::ResolveEndpointID => unimplemented!(),
+                        CommandCode::AllocateEndpointIDs => unimplemented!(),
+                        CommandCode::RoutingInformationUpdate => unimplemented!(),
+                        CommandCode::GetRoutingTableEntries => unimplemented!(),
+                        CommandCode::PrepareForEndpointDiscovery => unimplemented!(),
+                        CommandCode::EndpointDiscovery => unimplemented!(),
+                        CommandCode::DiscoveryNotify => unimplemented!(),
+                        CommandCode::GetNetworkID => unimplemented!(),
+                        CommandCode::QueryHop => unimplemented!(),
+                        CommandCode::ResolveUUID => unimplemented!(),
+                        CommandCode::QueryRateLimit => unimplemented!(),
+                        CommandCode::RequestTXRateLimit => unimplemented!(),
+                        CommandCode::UpdateRateLimit => unimplemented!(),
+                        CommandCode::QuerySupportedInterfaces => unimplemented!(),
+                        _ => unimplemented!(),
+                    }
+
+                    return Ok(((msg_type, payload), Some(len)));
+                }
+
+                Ok(((msg_type, payload), None))
             }
             MessageType::VendorDefinedPCI => {
                 // Vendor defined, we don't know what to do
-                Ok((msg_type, payload, None))
+                Ok(((msg_type, payload), None))
             }
             MessageType::VendorDefinedIANA => {
                 // Vendor defined, we don't know what to do
-                Ok((msg_type, payload, None))
+                Ok(((msg_type, payload), None))
             }
             _ => Err((MessageType::Invalid, DecodeError::Unknown)),
         }
@@ -231,7 +278,7 @@ mod smbus_tests {
     #[test]
     fn test_decode_request() {
         const DEST_ID: u8 = 0x23;
-        const SOURCE_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID);
         let mut buf: [u8; 12] = [0; 12];
@@ -305,5 +352,56 @@ mod smbus_tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_process_request() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let ctx_request = MCTPSMBusContext::new(SOURCE_ID);
+        let mut buf_request: [u8; 12] = [0; 12];
+
+        let _len = ctx_request.get_request().get_mctp_version_support(
+            DEST_ID,
+            MCTPVersionQuery::MCTPBaseSpec,
+            &mut buf_request,
+        );
+
+        let ctx_response = MCTPSMBusContext::new(DEST_ID);
+        let mut buf_response: [u8; 17] = [0; 17];
+
+        let (_, len) = ctx_response
+            .process_packet(&buf_request, &mut buf_response)
+            .unwrap();
+
+        assert_eq!(len.unwrap(), 17);
+
+        // Destination address
+        assert_eq!(buf_response[0], SOURCE_ID << 1);
+
+        // Byte count
+        assert_eq!(buf_response[2], 14);
+
+        // IC and Message Type
+        assert_eq!(buf_response[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf_response[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+
+        // Command Code
+        assert_eq!(buf_response[10], CommandCode::GetMCTPVersionSupport as u8);
+        // Completion Code
+        assert_eq!(buf_response[11], CompletionCode::Success as u8);
+
+        // Version Entry Count
+        assert_eq!(buf_response[12], 1);
+        // Major version number
+        assert_eq!(buf_response[13], 0xF1);
+        // Major version number
+        assert_eq!(buf_response[14], 0xF3);
+        // Update version number
+        assert_eq!(buf_response[15], 0xF1);
+        // Alpha byte
+        assert_eq!(buf_response[16], 0x00);
     }
 }

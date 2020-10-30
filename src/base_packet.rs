@@ -110,7 +110,7 @@ impl MCTPMessageBodyHeader<[u8; 1]> {
 /// The MCTP Message Body, this is included inside the high level packet.
 pub struct MCTPMessageBody<'a, 'b> {
     header: &'b MCTPMessageBodyHeader<[u8; 1]>,
-    additional_header: Option<&'a [u8]>,
+    pub(crate) additional_header: Option<&'a [u8]>,
     pub(crate) data: &'a [u8],
     mic: Option<&'a [u8]>,
 }
