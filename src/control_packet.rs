@@ -5,14 +5,16 @@
 use crate::mctp_traits::MCTPControlMessageRequest;
 
 bitfield! {
-    /// This is the header Control Message without the completion code.
+    /// This is the header for a Control Message, without the completion code.
     pub struct MCTPControlMessageHeader(MSB0 [u8]);
     u8;
     /// Is the packet a request?
     pub rq, set_rq : 0, 0;
+    /// Is this packet a datagram?
     d, set_d: 1, 1;
     rsvd, _: 2, 2;
     instance_id, set_instance_id: 7, 3;
+    /// The command code of the packet
     command_code, set_command_code: 15, 8;
 }
 
@@ -165,6 +167,8 @@ pub enum MCTPVersionQuery {
 impl MCTPControlMessageHeader<[u8; 2]> {
     /// Create a new MCTPControlMessageHeader.
     ///
+    /// `request`: Request bit. This bit is used to help differentiate between
+    /// MCTP control Request messages and other message classes.Refer to 11.5.
     /// `datagram`: This bit is used to indicate whether the Instance
     /// ID field is being used for tracking and matching requests and
     /// responses, or is just being used to identify a retransmitted message.
@@ -194,13 +198,17 @@ impl MCTPControlMessageHeader<[u8; 2]> {
         con_header
     }
 
-    /// Create a new MCTPControlMessageHeader from a buffer.
+    /// Create a new `MCTPControlMessageHeader` from an existing buffer.
+    ///
+    /// `buffer`: The existing buffer for the `MCTPControlMessageHeader`
+    /// No checks are performed on the `buffer`.
     pub fn new_from_buf(buf: [u8; 2]) -> Self {
         MCTPControlMessageHeader(buf)
     }
 }
 
 impl MCTPControlMessageRequest for MCTPControlMessageHeader<[u8; 2]> {
+    /// Get the command code from a `MCTPControlMessageHeader`.
     fn command_code(&self) -> u8 {
         self.command_code()
     }

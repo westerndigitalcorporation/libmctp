@@ -1,4 +1,4 @@
-//! The error types used by MCTP and libMCTP
+//! The public error types used by libMCTP
 
 use crate::control_packet::CompletionCode;
 

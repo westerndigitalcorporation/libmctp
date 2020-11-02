@@ -2,7 +2,7 @@
 //!
 //! This should be used when you want to communicate via MCTP over SMBus/I2C.
 //!
-//! In order to use this you first need to crete the main context struct. Then
+//! In order to use this you first need to create the main context struct. Then
 //! the `get_request()`/`get_response()` functions can be used to issue raw
 //! commands.
 //!
@@ -10,6 +10,7 @@
 //! buffer containing the data to be sent. This allows you to use your own
 //! SMBus/I2C implementation.
 //!
+//! ## Generate a MCTP request
 //! ```rust
 //!     use libmctp::control_packet::MCTPVersionQuery;
 //!     use libmctp::smbus::MCTPSMBusContext;
@@ -26,10 +27,60 @@
 //!         &mut buf,
 //!     );
 //!
-//!     // Send the buf of length len via SMBus
+//!     // Send the request buf of length len via SMBus
 //! ```
 //!
-//! Packets can be decoded using the `decode_packet()` function.
+//! ## Generate a MCTP response
+//! ```rust
+//!     use libmctp::control_packet::MCTPVersionQuery;
+//!     use libmctp::smbus::MCTPSMBusContext;
+//!
+//!     const MY_ID: u8 = 0x23;
+//!     let ctx = MCTPSMBusContext::new(MY_ID);
+//!
+//!     let mut buf: [u8; 32] = [0; 32];
+//!
+//!     const DEST_ID: u8 = 0x34;
+//!     let len = ctx.get_response().get_mctp_version_support(
+//!         DEST_ID,
+//!         &mut buf,
+//!     );
+//!
+//!     // Send the response buf of length len via SMBus
+//! ```
+//!
+//! ## Decode a packet received
+//! ```rust
+//!     use libmctp::control_packet::MCTPVersionQuery;
+//!     use libmctp::smbus::MCTPSMBusContext;
+//!
+//!     const MY_ID: u8 = 0x23;
+//!     let ctx = MCTPSMBusContext::new(MY_ID);
+//!     let mut buf: [u8; 32] = [0; 32];
+//!
+//!     // Receive data into buf from SMBus
+//!
+//!     let ret = ctx.decode_packet(&buf);
+//!
+//!     // Match and decode the returned value
+//! ```
+//!
+//! ## Process a request to generate a response
+//! ```rust
+//!     use libmctp::control_packet::MCTPVersionQuery;
+//!     use libmctp::smbus::MCTPSMBusContext;
+//!
+//!     const MY_ID: u8 = 0x23;
+//!     let ctx = MCTPSMBusContext::new(MY_ID);
+//!     let mut buf_request: [u8; 32] = [0; 32];
+//!     let mut buf_response: [u8; 32] = [0; 32];
+//!
+//!     // Receive data into buf_request from SMBus
+//!
+//!     let ret = ctx.process_packet(&buf_request, &mut buf_response);
+//!
+//!     // Match and decode the returned value
+//! ```
 
 use crate::base_packet::{
     MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader, MessageType,
@@ -41,14 +92,17 @@ use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket};
 use crate::smbus_request::MCTPSMBusContextRequest;
 use crate::smbus_response::MCTPSMBusContextResponse;
 
+/// The returned data for SMBus headers
 type SMBusHeaders = (
     MCTPSMBusHeader<[u8; 4]>,
     MCTPTransportHeader<[u8; 4]>,
     MCTPMessageBodyHeader<[u8; 1]>,
 );
 
+/// The returned data for decoding control packets
 type ControlDecodedPacketData<'a> = (MessageType, &'a [u8]);
 
+/// The returned data for for raw control packets
 type ControlRawPacketData<'a, 'b> = (
     MCTPControlMessageHeader<[u8; 2]>,
     Option<CompletionCode>,
@@ -64,7 +118,7 @@ pub struct MCTPSMBusContext {
 impl MCTPSMBusContext {
     /// Create a new SBMust context
     ///
-    /// `address`: The source address of this device
+    /// `address`: The source address of this device.
     pub fn new(address: u8) -> Self {
         Self {
             request: MCTPSMBusContextRequest::new(address),
@@ -73,17 +127,20 @@ impl MCTPSMBusContext {
     }
 
     /// Get the underlying request protocol struct.
-    /// This can be used to generate specific packets
+    /// This can be used to manually generate specific packets
     pub fn get_request(&self) -> &MCTPSMBusContextRequest {
         &self.request
     }
 
     /// Get the underlying response protocol struct.
-    /// This can be used to generate specific packets
+    /// This can be used to manually generate specific packets
     pub fn get_response(&self) -> &MCTPSMBusContextResponse {
         &self.response
     }
 
+    /// Get the SMBus headers from a packet
+    ///
+    /// `packet`: A buffer of the packet to get the headers from.
     fn get_smbus_headers(&self, packet: &[u8]) -> Result<SMBusHeaders, (MessageType, DecodeError)> {
         // packet is a MCTPSMBusPacket
         let mut smbus_header_buf: [u8; 4] = [0; 4];
@@ -99,7 +156,13 @@ impl MCTPSMBusContext {
         Ok((smbus_header, base_header, body_header))
     }
 
-    /// Decodes a MCTP packet
+    /// Decodes a MCTP packet.
+    ///
+    /// `packet`: A buffer of the packet to get the headers from.
+    ///
+    /// On success returns the `MessageType` and a reference into `packet` where
+    /// the payload starts.
+    /// On error returned the `MessageType` and a `DecodeError`.
     pub fn decode_packet<'a>(
         &self,
         packet: &'a [u8],
@@ -116,6 +179,7 @@ impl MCTPSMBusContext {
         }
     }
 
+    /// Get the MCTP control packet
     fn get_mctp_control_packet<'a, 'b>(
         &self,
         _smbus_header: &MCTPSMBusHeader<[u8; 4]>,
@@ -193,7 +257,9 @@ impl MCTPSMBusContext {
     /// If this packet is a request then the `response_buf` is populated with
     /// a response to the request.
     ///
-    /// On success the first two arguments in the `Ok()` result are the same as
+    /// `packet`: A buffer of the packet to get the headers from.
+    ///
+    /// On success the first two arguments are the same as
     /// the return from the `decode_packet()` function. The third argument is
     /// an option. If `None` then `response_buf` wasn't changed because the
     /// `packet` was not a request. If `Some` it contains the length of the
@@ -271,7 +337,7 @@ impl MCTPSMBusContext {
 }
 
 #[cfg(test)]
-mod smbus_tests {
+mod tests {
     use super::*;
     use crate::control_packet::MCTPVersionQuery;
 

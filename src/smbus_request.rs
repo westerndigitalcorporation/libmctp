@@ -20,6 +20,7 @@ impl MCTPSMBusContextRequest {
         Self { address }
     }
 
+    /// Generate a transport header
     fn generate_transport_header(&self, dest_addr: u8) -> MCTPTransportHeader<[u8; 4]> {
         let mut base_header: MCTPTransportHeader<[u8; 4]> = MCTPTransportHeader::new(HDR_VERSION);
         base_header.set_dest_endpoint_id(dest_addr);
@@ -33,6 +34,7 @@ impl MCTPSMBusContextRequest {
         base_header
     }
 
+    /// Generate a SMBus header
     fn generate_smbus_header(&self, dest_addr: u8) -> MCTPSMBusHeader<[u8; 4]> {
         let mut smbus_header: MCTPSMBusHeader<[u8; 4]> = MCTPSMBusHeader::new();
         smbus_header.set_dest_read_write(0);
@@ -63,7 +65,11 @@ impl MCTPSMBusContextRequest {
 
     /// Generate a packet to get the MCTP Versions supported by a device.
     ///
-    /// return MCTP base specification version information.
+    /// `dest_addr`: The address to send the data to.
+    /// `query`: The type of version query.
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query.
     pub fn get_mctp_version_support(
         &self,
         dest_addr: u8,
@@ -99,7 +105,7 @@ impl MCTPSMBusContextRequest {
 }
 
 #[cfg(test)]
-mod smbus_request_tests {
+mod tests {
     use super::*;
 
     #[test]

@@ -14,17 +14,23 @@ pub(crate) trait MCTPHeader {
         self.len() == 0
     }
 
-    /// Convert the header to raw bytes
+    /// Store the header packet into a buffer and return
+    /// the number of bytes stored. The return value is the same as
+    /// calling `len()`.
+    ///
+    /// `buffer`: a mutable buffer to store the bytes from the struct.
+    /// `buffer` is formated as valid MCTP data.
     fn to_raw_bytes(&self, buf: &mut [u8]) -> usize;
 }
 
+/// The standard trait for the MCTP Control Message request type
 pub(crate) trait MCTPControlMessageRequest {
     fn command_code(&self) -> u8;
 
     /// Get the length of the request data command
     fn get_request_data_len(&self) -> usize {
         match self.command_code().into() {
-            CommandCode::Reserved => unimplemented!(),
+            CommandCode::Reserved => 0,
             CommandCode::SetEndpointID => unimplemented!(),
             CommandCode::GetEndpointID => unimplemented!(),
             CommandCode::GetEndpointUUID => unimplemented!(),
@@ -52,7 +58,7 @@ pub(crate) trait MCTPControlMessageRequest {
     /// Get the length of the response data command
     fn get_response_data_len(&self) -> usize {
         match self.command_code().into() {
-            CommandCode::Reserved => unimplemented!(),
+            CommandCode::Reserved => 0,
             CommandCode::SetEndpointID => unimplemented!(),
             CommandCode::GetEndpointID => unimplemented!(),
             CommandCode::GetEndpointUUID => unimplemented!(),

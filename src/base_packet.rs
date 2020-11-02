@@ -2,6 +2,7 @@
 //!
 //! This provides the MCTP base protocol common fields. These are used by
 //! all implementations and are described in DSP0236 table 1.
+//!
 
 use crate::mctp_traits::MCTPHeader;
 
@@ -32,7 +33,7 @@ impl From<u8> for MessageType {
 }
 
 bitfield! {
-    /// The MCTP Transport Header.
+    /// The MCTP Transport Header, 4 bytes long.
     pub struct MCTPTransportHeader(MSB0 [u8]);
     u8;
     rsvd, _ : 3, 0;
@@ -67,9 +68,10 @@ impl MCTPTransportHeader<[u8; 4]> {
         tran_header
     }
 
-    /// Create a new MCTPTransportHeader from an existing buffer.
+    /// Create a new `MCTPTransportHeader` from an existing buffer.
     ///
-    /// `buffer`: The existing buffer for the MCTPTransportHeader
+    /// `buffer`: The existing buffer for the `MCTPTransportHeader`
+    /// No checks are performed on the `buffer`.
     pub fn new_from_buf(buf: [u8; 4]) -> Self {
         MCTPTransportHeader(buf)
     }
@@ -79,6 +81,8 @@ bitfield! {
     /// The MCTP Transport Body Header.
     pub struct MCTPMessageBodyHeader(MSB0 [u8]);
     u8;
+    /// (MCTP integrity check bit) Indicates whether the MCTP message is covered
+    /// by an overall MCTP message payload integrity check.
     ic, set_ic: 0, 0;
     /// The message type
     pub msg_type, set_msg_type: 7, 1;
@@ -101,7 +105,10 @@ impl MCTPMessageBodyHeader<[u8; 1]> {
         body_header
     }
 
-    /// Create a new MCTPMessageBodyHeader from an existing buffer.
+    /// Create a new `MCTPMessageBodyHeader` from an existing buffer.
+    ///
+    /// `buffer`: The existing buffer for the `MCTPMessageBodyHeader`
+    /// No checks are performed on the `buffer`.
     pub fn new_from_buf(buf: [u8; 1]) -> Self {
         MCTPMessageBodyHeader(buf)
     }
@@ -152,7 +159,12 @@ impl<'a, 'b> MCTPHeader for MCTPMessageBody<'a, 'b> {
         offset
     }
 
-    /// Store the MCTPMessageBody packet into a buffer.
+    /// Store the MCTPMessageBody packet into a buffer and return
+    /// the number of bytes stored. The return value is the same as
+    /// calling `len()`.
+    ///
+    /// `buffer`: a mutable buffer to store the bytes from the struct.
+    /// `buffer` is formated as valid MCTP data.
     fn to_raw_bytes(&self, buf: &mut [u8]) -> usize {
         let mut offset = 0;
 
@@ -177,7 +189,7 @@ impl<'a, 'b> MCTPHeader for MCTPMessageBody<'a, 'b> {
 }
 
 #[cfg(test)]
-mod smbus_tests {
+mod tests {
     use super::*;
 
     #[test]
