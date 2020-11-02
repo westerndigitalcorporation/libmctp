@@ -185,6 +185,30 @@ pub enum MCTPSetEndpointIDAllocationStatus {
     AlreadyAllocated = 0b10,
 }
 
+/// Endpoint Type
+pub enum MCTPGetEndpointIDEndpointType {
+    /// Simple endpoint
+    Simple = 0b00,
+    /// Bus owner/bridge endpoint
+    Bus = 0b01,
+}
+
+/// Endpoint ID Type
+pub enum MCTPGetEndpointIDEndpointIDType {
+    /// The endpoint uses a dynamic EID only
+    DynamicEID = 0b00,
+    /// The endpoint was configured with a static EID. The EID returned by
+    /// this command reflects the present setting and may or may not match
+    /// the static EID value.
+    StaticEID = 0b01,
+    /// Present EID matches static EID.The endpoint has been configured with
+    /// a static EID. The present value is the same as the static value.
+    StaticPresentMatchEID = 0b10,
+    /// Present EID does not match static EID. Endpoint has been configured
+    /// with a static EID. The present value is different than the static value.
+    StaticPresentNoMatchEID = 0b11,
+}
+
 /// The type of version query when calling GetMCTPVersionSupport
 pub enum MCTPVersionQuery {
     /// return MCTP base specification version information
