@@ -212,22 +212,16 @@ mod tests {
             .unwrap();
 
         assert_eq!(len, 13);
-
         // Byte count
         assert_eq!(buf[2], 10);
-
         // IC and Message Type
         assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
-
         // Rq, D, rsvd and Instance ID
         assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
-
         // Command Code
         assert_eq!(buf[10], CommandCode::SetEndpointID as u8);
-
         // Operation
         assert_eq!(buf[11], MCTPSetEndpointIDOperations::SetEID as u8);
-
         // Endpoint ID
         assert_eq!(buf[12], EID);
     }
@@ -243,16 +237,12 @@ mod tests {
         let len = ctx.get_endpoint_id(DEST_ID, &mut buf).unwrap();
 
         assert_eq!(len, 11);
-
         // Byte count
         assert_eq!(buf[2], 8);
-
         // IC and Message Type
         assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
-
         // Rq, D, rsvd and Instance ID
         assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
-
         // Command Code
         assert_eq!(buf[10], CommandCode::GetEndpointID as u8);
     }
@@ -268,16 +258,12 @@ mod tests {
         let len = ctx.get_endpoint_uuid(DEST_ID, &mut buf).unwrap();
 
         assert_eq!(len, 11);
-
         // Byte count
         assert_eq!(buf[2], 8);
-
         // IC and Message Type
         assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
-
         // Rq, D, rsvd and Instance ID
         assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
-
         // Command Code
         assert_eq!(buf[10], CommandCode::GetEndpointUUID as u8);
     }
@@ -295,19 +281,14 @@ mod tests {
             .unwrap();
 
         assert_eq!(len, 12);
-
         // Byte count
         assert_eq!(buf[2], 9);
-
         // IC and Message Type
         assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
-
         // Rq, D, rsvd and Instance ID
         assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
-
         // Command Code
         assert_eq!(buf[10], CommandCode::GetMCTPVersionSupport as u8);
-
         // Command query
         assert_eq!(buf[11], MCTPVersionQuery::MCTPBaseSpec as u8);
     }
@@ -323,16 +304,12 @@ mod tests {
         let len = ctx.get_message_type_suport(DEST_ID, &mut buf).unwrap();
 
         assert_eq!(len, 11);
-
         // Byte count
         assert_eq!(buf[2], 8);
-
         // IC and Message Type
         assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
-
         // Rq, D, rsvd and Instance ID
         assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
-
         // Command Code
         assert_eq!(buf[10], CommandCode::GetMessageTypeSupport as u8);
     }
@@ -351,19 +328,14 @@ mod tests {
             .unwrap();
 
         assert_eq!(len, 12);
-
         // Byte count
         assert_eq!(buf[2], 9);
-
         // IC and Message Type
         assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
-
         // Rq, D, rsvd and Instance ID
         assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
-
         // Command Code
         assert_eq!(buf[10], CommandCode::GetVendorDefinedMessageSupport as u8);
-
         // Vendor ID
         assert_eq!(buf[11], VENDOR_ID);
     }
