@@ -304,10 +304,13 @@ impl MCTPSMBusContext {
                         CommandCode::GetEndpointID => unimplemented!(),
                         CommandCode::GetEndpointUUID => unimplemented!(),
                         CommandCode::GetMCTPVersionSupport => {
-                            len = self.get_response().get_mctp_version_support(
-                                base_header.source_endpoint_id(),
-                                response_buf,
-                            );
+                            len = self
+                                .get_response()
+                                .get_mctp_version_support(
+                                    base_header.source_endpoint_id(),
+                                    response_buf,
+                                )
+                                .unwrap();
                         }
                         CommandCode::GetMessageTypeSupport => unimplemented!(),
                         CommandCode::GetVendorDefinedMessageSupport => unimplemented!(),

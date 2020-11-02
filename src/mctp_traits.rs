@@ -2,7 +2,11 @@
 //!
 //! This is an internal implementation.
 
+use crate::base_packet::{
+    MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader, MessageType,
+};
 use crate::control_packet::CommandCode;
+use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket, HDR_VERSION, MCTP_SMBUS_COMMAND_CODE};
 
 /// The standard trait for all MCTP headers
 pub(crate) trait MCTPHeader {
@@ -81,5 +85,58 @@ pub(crate) trait MCTPControlMessageRequest {
             CommandCode::QuerySupportedInterfaces => unimplemented!(),
             CommandCode::Unknown => unimplemented!(),
         }
+    }
+}
+
+/// The standard trait for SMBus Request and Response
+pub(crate) trait SMBusMCTPRequestResponse {
+    /// Get the address of the current implementation
+    fn get_address(&self) -> u8;
+
+    /// Generate a transport header
+    fn generate_transport_header(&self, dest_addr: u8) -> MCTPTransportHeader<[u8; 4]> {
+        let mut base_header: MCTPTransportHeader<[u8; 4]> = MCTPTransportHeader::new(HDR_VERSION);
+        base_header.set_dest_endpoint_id(dest_addr);
+        base_header.set_source_endpoint_id(self.get_address());
+        base_header.set_som(true as u8);
+        base_header.set_eom(true as u8);
+        base_header.set_pkt_seq(0);
+        base_header.set_to(true as u8);
+        base_header.set_msg_tag(0);
+
+        base_header
+    }
+
+    /// Generate a SMBus header
+    fn generate_smbus_header(&self, dest_addr: u8) -> MCTPSMBusHeader<[u8; 4]> {
+        let mut smbus_header: MCTPSMBusHeader<[u8; 4]> = MCTPSMBusHeader::new();
+        smbus_header.set_dest_read_write(0);
+        smbus_header.set_dest_slave_addr(dest_addr);
+        smbus_header.set_command_code(MCTP_SMBUS_COMMAND_CODE);
+        smbus_header.set_source_slave_addr(self.get_address());
+        smbus_header.set_source_read_write(1);
+
+        smbus_header
+    }
+
+    /// Store the packet bytes in the `buf`.
+    fn generate_packet_bytes(
+        &self,
+        dest_addr: u8,
+        message_header: &Option<&[u8]>,
+        message_data: &[u8],
+        buf: &mut [u8],
+    ) -> Result<usize, ()> {
+        let mut smbus_header = self.generate_smbus_header(dest_addr);
+        let base_header = self.generate_transport_header(dest_addr);
+
+        let header: MCTPMessageBodyHeader<[u8; 1]> =
+            MCTPMessageBodyHeader::new(false, MessageType::MCtpControl);
+
+        let body = MCTPMessageBody::new(&header, *message_header, &message_data, None);
+
+        let packet = MCTPSMBusPacket::new(&mut smbus_header, &base_header, &body);
+
+        Ok(packet.to_raw_bytes(buf))
     }
 }

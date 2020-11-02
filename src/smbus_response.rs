@@ -1,15 +1,17 @@
 //! The SMBus specific CMTP response protocol implementation.
 
-use crate::base_packet::{
-    MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader, MessageType,
-};
 use crate::control_packet::{CommandCode, CompletionCode, MCTPControlMessageHeader};
-use crate::mctp_traits::MCTPHeader;
-use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket, HDR_VERSION, MCTP_SMBUS_COMMAND_CODE};
+use crate::mctp_traits::SMBusMCTPRequestResponse;
 
 /// The context for MCTP SMBus response protocol operations
 pub struct MCTPSMBusContextResponse {
     address: u8,
+}
+
+impl SMBusMCTPRequestResponse for MCTPSMBusContextResponse {
+    fn get_address(&self) -> u8 {
+        self.address
+    }
 }
 
 impl MCTPSMBusContextResponse {
@@ -18,32 +20,6 @@ impl MCTPSMBusContextResponse {
     /// `address`: The source address of this device
     pub fn new(address: u8) -> Self {
         Self { address }
-    }
-
-    /// Generate a transport header
-    fn generate_transport_header(&self, dest_addr: u8) -> MCTPTransportHeader<[u8; 4]> {
-        let mut base_header: MCTPTransportHeader<[u8; 4]> = MCTPTransportHeader::new(HDR_VERSION);
-        base_header.set_dest_endpoint_id(dest_addr);
-        base_header.set_source_endpoint_id(self.address);
-        base_header.set_som(true as u8);
-        base_header.set_eom(true as u8);
-        base_header.set_pkt_seq(0);
-        base_header.set_to(true as u8);
-        base_header.set_msg_tag(0);
-
-        base_header
-    }
-
-    /// Generate a SMBus header
-    fn generate_smbus_header(&self, dest_addr: u8) -> MCTPSMBusHeader<[u8; 4]> {
-        let mut smbus_header: MCTPSMBusHeader<[u8; 4]> = MCTPSMBusHeader::new();
-        smbus_header.set_dest_read_write(0);
-        smbus_header.set_dest_slave_addr(dest_addr);
-        smbus_header.set_command_code(MCTP_SMBUS_COMMAND_CODE);
-        smbus_header.set_source_slave_addr(self.address);
-        smbus_header.set_source_read_write(1);
-
-        smbus_header
     }
 
     /// Assigns an EID to the endpoint at the given physical address
@@ -69,12 +45,7 @@ impl MCTPSMBusContextResponse {
     /// `buf`: A mutable buffer to store the request bytes.
     ///
     /// Returns the length of the response.
-    pub fn get_mctp_version_support(&self, dest_addr: u8, buf: &mut [u8]) -> usize {
-        let mut smbus_header = self.generate_smbus_header(dest_addr);
-        let base_header = self.generate_transport_header(dest_addr);
-
-        let header: MCTPMessageBodyHeader<[u8; 1]> =
-            MCTPMessageBodyHeader::new(false, MessageType::MCtpControl);
+    pub fn get_mctp_version_support(&self, dest_addr: u8, buf: &mut [u8]) -> Result<usize, ()> {
         let command_header =
             MCTPControlMessageHeader::new(false, false, 0, CommandCode::GetMCTPVersionSupport);
         let message_header = Some(&(command_header.0[..]));
@@ -84,11 +55,7 @@ impl MCTPSMBusContextResponse {
         // Version: 1.3.1
         let message_data: [u8; 6] = [CompletionCode::Success as u8, 1, 0xF1, 0xF3, 0xF1, 0x00];
 
-        let body = MCTPMessageBody::new(&header, message_header, &message_data, None);
-
-        let packet = MCTPSMBusPacket::new(&mut smbus_header, &base_header, &body);
-
-        packet.to_raw_bytes(buf)
+        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Lists the message types that an endpoint supports
@@ -105,6 +72,8 @@ impl MCTPSMBusContextResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::base_packet::MessageType;
+    use crate::smbus_proto::{HDR_VERSION, MCTP_SMBUS_COMMAND_CODE};
 
     #[test]
     fn test_generate_smbus_header() {
@@ -154,7 +123,7 @@ mod tests {
         let ctx = MCTPSMBusContextResponse::new(SOURCE_ID);
         let mut buf: [u8; 21] = [0; 21];
 
-        let len = ctx.get_mctp_version_support(DEST_ID, &mut buf);
+        let len = ctx.get_mctp_version_support(DEST_ID, &mut buf).unwrap();
 
         assert_eq!(len, 17);
 
