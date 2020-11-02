@@ -164,6 +164,27 @@ pub enum MCTPSetEndpointIDOperations {
     SetDiscoveredFlag = 0b11,
 }
 
+#[derive(PartialEq)]
+/// EID assignment status
+pub enum MCTPSetEndpointIDAssignmentStatus {
+    /// EID assignment accepted.
+    Accpeted = 0b00,
+    /// EID assignment rejected. EID has already been assigned by another
+    /// bus owner and assignment was not forced
+    Rejected = 0b01,
+}
+
+#[derive(PartialEq)]
+/// Endpoint ID allocation status (see 12.10 for additional information)
+pub enum MCTPSetEndpointIDAllocationStatus {
+    /// Device does not use an EID pool
+    NoIDPool = 0b00,
+    /// Endpoint requires EID pool allocation
+    RequiresAllocation = 0b01,
+    /// Endpoint uses an EID pool and has already received an allocation for that pool.
+    AlreadyAllocated = 0b10,
+}
+
 /// The type of version query when calling GetMCTPVersionSupport
 pub enum MCTPVersionQuery {
     /// return MCTP base specification version information
