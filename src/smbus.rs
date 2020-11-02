@@ -88,7 +88,7 @@ use crate::base_packet::{
 use crate::control_packet::{CommandCode, CompletionCode, MCTPControlMessageHeader};
 use crate::errors::{ControlMessageError, DecodeError};
 use crate::mctp_traits::MCTPControlMessageRequest;
-use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket};
+use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket, HDR_VERSION};
 use crate::smbus_request::MCTPSMBusContextRequest;
 use crate::smbus_response::MCTPSMBusContextResponse;
 
@@ -149,9 +149,19 @@ impl MCTPSMBusContext {
 
         let mut base_header_buf: [u8; 4] = [0; 4];
         base_header_buf.copy_from_slice(&packet[4..8]);
-        let base_header = MCTPTransportHeader::new_from_buf(base_header_buf);
+        let base_header = match MCTPTransportHeader::new_from_buf(base_header_buf, HDR_VERSION) {
+            Ok(header) => header,
+            Err(()) => {
+                return Err((MessageType::Invalid, DecodeError::Unknown));
+            }
+        };
 
-        let body_header = MCTPMessageBodyHeader::new_from_buf([packet[8]]);
+        let body_header = match MCTPMessageBodyHeader::new_from_buf([packet[8]]) {
+            Ok(header) => header,
+            Err(()) => {
+                return Err((MessageType::Invalid, DecodeError::Unknown));
+            }
+        };
 
         Ok((smbus_header, base_header, body_header))
     }

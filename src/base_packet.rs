@@ -58,12 +58,12 @@ bitfield! {
 impl MCTPTransportHeader<[u8; 4]> {
     /// Create a new MCTPTransportHeader.
     ///
-    /// `header`: The transport layer specific header version.
-    pub fn new(header: u8) -> Self {
+    /// `version`: The transport layer specific header version.
+    pub fn new(version: u8) -> Self {
         let buf = [0; 4];
         let mut tran_header = MCTPTransportHeader(buf);
 
-        tran_header.set_hdr_version(header);
+        tran_header.set_hdr_version(version);
 
         tran_header
     }
@@ -71,9 +71,19 @@ impl MCTPTransportHeader<[u8; 4]> {
     /// Create a new `MCTPTransportHeader` from an existing buffer.
     ///
     /// `buffer`: The existing buffer for the `MCTPTransportHeader`
-    /// No checks are performed on the `buffer`.
-    pub fn new_from_buf(buf: [u8; 4]) -> Self {
-        MCTPTransportHeader(buf)
+    /// `version`: The transport layer specific header version.
+    pub fn new_from_buf(buf: [u8; 4], version: u8) -> Result<Self, ()> {
+        let header = MCTPTransportHeader(buf);
+
+        if header.rsvd() != 0x00 {
+            return Err(());
+        }
+
+        if header.hdr_version() != version {
+            return Err(());
+        }
+
+        Ok(header)
     }
 }
 
@@ -93,11 +103,16 @@ impl MCTPMessageBodyHeader<[u8; 1]> {
     ///
     /// `ic`: (MCTP integrity check bit) Indicates whether the MCTP message
     /// is covered by an overall MCTP message payload integrity check.
+    /// `ic` is currently not supported
     /// `msg_type`: Defines the type of payload contained in the message
     /// data portion of the MCTP message.
     pub fn new(ic: bool, msg_type: MessageType) -> Self {
         let buf = [0; 1];
         let mut body_header = MCTPMessageBodyHeader(buf);
+
+        if ic {
+            panic!("Message Integrity bit is currently not supported");
+        }
 
         body_header.set_ic(ic as u8);
         body_header.set_msg_type(msg_type as u8);
@@ -108,9 +123,19 @@ impl MCTPMessageBodyHeader<[u8; 1]> {
     /// Create a new `MCTPMessageBodyHeader` from an existing buffer.
     ///
     /// `buffer`: The existing buffer for the `MCTPMessageBodyHeader`
-    /// No checks are performed on the `buffer`.
-    pub fn new_from_buf(buf: [u8; 1]) -> Self {
-        MCTPMessageBodyHeader(buf)
+    pub fn new_from_buf(buf: [u8; 1]) -> Result<Self, ()> {
+        let header = MCTPMessageBodyHeader(buf);
+
+        if header.ic() != 0x00 {
+            // We currently don't support the Message Integrity Bit
+            return Err(());
+        }
+
+        if MessageType::from(header.msg_type()) == MessageType::Invalid {
+            return Err(());
+        }
+
+        Ok(header)
     }
 }
 
