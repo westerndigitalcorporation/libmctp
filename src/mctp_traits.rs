@@ -90,8 +90,20 @@ pub(crate) trait MCTPControlMessageRequest {
 
 /// The standard trait for SMBus Request and Response
 pub(crate) trait SMBusMCTPRequestResponse {
-    /// Get the address of the current implementation
+    /// Get the address of the device
+    ///
+    /// Returns the address
     fn get_address(&self) -> u8;
+
+    /// Get the current EID of the device
+    ///
+    /// Returns the EID
+    fn get_eid(&self) -> u8;
+
+    /// Set the EID of the device
+    ///
+    /// `eid`: The new eid to use
+    fn set_eid(&self, eid: u8);
 
     /// Generate a transport header
     fn generate_transport_header(&self, dest_addr: u8) -> MCTPTransportHeader<[u8; 4]> {

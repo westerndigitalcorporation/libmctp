@@ -5,16 +5,34 @@ use crate::control_packet::{
     MCTPSetEndpointIDAssignmentStatus,
 };
 use crate::mctp_traits::SMBusMCTPRequestResponse;
+use core::cell::Cell;
 
 /// The context for MCTP SMBus response protocol operations
 pub struct MCTPSMBusContextResponse {
     address: u8,
-    eid: u8,
+    eid: Cell<u8>,
 }
 
 impl SMBusMCTPRequestResponse for MCTPSMBusContextResponse {
+    /// Get the address of the device
+    ///
+    /// Returns the address
     fn get_address(&self) -> u8 {
         self.address
+    }
+
+    /// Get the current EID of the device
+    ///
+    /// Returns the EID
+    fn get_eid(&self) -> u8 {
+        self.eid.get()
+    }
+
+    /// Set the EID of the device
+    ///
+    /// `eid`: The new eid to use
+    fn set_eid(&self, eid: u8) {
+        self.eid.replace(eid);
     }
 }
 
@@ -23,21 +41,10 @@ impl MCTPSMBusContextResponse {
     ///
     /// `address`: The source address of this device
     pub fn new(address: u8) -> Self {
-        Self { address, eid: 0x00 }
-    }
-
-    /// Get the current EID of the device
-    ///
-    /// Returns the EID
-    pub fn get_eid(&self) -> u8 {
-        self.eid
-    }
-
-    /// Set the EID of the device
-    ///
-    /// `eid`: The new eid to use
-    pub fn set_eid(&mut self, eid: u8) {
-        self.eid = eid;
+        Self {
+            address,
+            eid: Cell::new(0x00),
+        }
     }
 
     /// Assigns an EID to the endpoint at the given physical address
@@ -68,7 +75,7 @@ impl MCTPSMBusContextResponse {
         let mut message_data: [u8; 4] = [
             CompletionCode::Success as u8,
             allocation_status as u8,
-            self.eid,
+            self.eid.get(),
             0x00,
         ];
 
@@ -173,7 +180,7 @@ mod tests {
         const SOURCE_ID: u8 = 0x23;
         const EID: u8 = 0x78;
 
-        let mut ctx = MCTPSMBusContextResponse::new(SOURCE_ID);
+        let ctx = MCTPSMBusContextResponse::new(SOURCE_ID);
         let mut buf: [u8; 21] = [0; 21];
 
         ctx.set_eid(EID);

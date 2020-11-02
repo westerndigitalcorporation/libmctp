@@ -4,15 +4,34 @@ use crate::control_packet::{
     CommandCode, MCTPControlMessageHeader, MCTPSetEndpointIDOperations, MCTPVersionQuery,
 };
 use crate::mctp_traits::SMBusMCTPRequestResponse;
+use core::cell::Cell;
 
 /// The context for MCTP SMBus request protocol operations
 pub struct MCTPSMBusContextRequest {
     address: u8,
+    eid: Cell<u8>,
 }
 
 impl SMBusMCTPRequestResponse for MCTPSMBusContextRequest {
+    /// Get the address of the device
+    ///
+    /// Returns the address
     fn get_address(&self) -> u8 {
         self.address
+    }
+
+    /// Get the current EID of the device
+    ///
+    /// Returns the EID
+    fn get_eid(&self) -> u8 {
+        self.eid.get()
+    }
+
+    /// Set the EID of the device
+    ///
+    /// `eid`: The new eid to use
+    fn set_eid(&self, eid: u8) {
+        self.eid.replace(eid);
     }
 }
 
@@ -21,7 +40,10 @@ impl MCTPSMBusContextRequest {
     ///
     /// `address`: The source address of this device
     pub fn new(address: u8) -> Self {
-        Self { address }
+        Self {
+            address,
+            eid: Cell::new(0x00),
+        }
     }
 
     /// Assigns an EID to the endpoint at the given physical address
