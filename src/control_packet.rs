@@ -150,6 +150,20 @@ impl From<u8> for CompletionCode {
     }
 }
 
+/// The possible operations when setting an endpoint ID
+pub enum MCTPSetEndpointIDOperations {
+    /// Submit an EID for assignment
+    SetEID = 0b00,
+    /// Force EID assignment
+    ForceEID = 0b01,
+    /// If static EIDs are supported, the endpoint shall restore the EID
+    /// to the statically configured EID value
+    ResetEID = 0b10,
+    /// Set Discovered flag to the “discovered”state only. Do not change
+    /// present EID setting. The EID value in byte 2 shall be ignored.
+    SetDiscoveredFlag = 0b11,
+}
+
 /// The type of version query when calling GetMCTPVersionSupport
 pub enum MCTPVersionQuery {
     /// return MCTP base specification version information
