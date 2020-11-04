@@ -60,6 +60,7 @@ impl MCTPSMBusContextResponse {
     /// Returns the length of the query on success.
     pub fn set_endpoint_id(
         &self,
+        completion_code: CompletionCode,
         dest_addr: u8,
         assignment_status: MCTPSetEndpointIDAssignmentStatus,
         allocation_status: MCTPSetEndpointIDAllocationStatus,
@@ -74,7 +75,7 @@ impl MCTPSMBusContextResponse {
         //  * EID Setting
         //  * EID Pool Size
         let mut message_data: [u8; 4] = [
-            CompletionCode::Success as u8,
+            completion_code as u8,
             allocation_status as u8,
             self.eid.get(),
             0x00,
@@ -100,6 +101,7 @@ impl MCTPSMBusContextResponse {
     /// Returns the length of the query on success.
     pub fn get_endpoint_id(
         &self,
+        completion_code: CompletionCode,
         dest_addr: u8,
         endpoint_type: MCTPGetEndpointIDEndpointType,
         endpoint_id_type: MCTPGetEndpointIDEndpointIDType,
@@ -115,7 +117,7 @@ impl MCTPSMBusContextResponse {
         //  * Endpoint Type (single endpoint)
         //  * Medium-Specific Information
         let message_data: [u8; 4] = [
-            CompletionCode::Success as u8,
+            completion_code as u8,
             self.eid.get(),
             (endpoint_type as u8) << 4 | endpoint_id_type as u8,
             fairness_support as u8,
@@ -133,6 +135,7 @@ impl MCTPSMBusContextResponse {
     /// Returns the length of the query on success.
     pub fn get_endpoint_uuid(
         &self,
+        completion_code: CompletionCode,
         dest_addr: u8,
         uuid: &[u8; 16],
         buf: &mut [u8],
@@ -146,7 +149,7 @@ impl MCTPSMBusContextResponse {
         //  * Endpoint Type (single endpoint)
         //  * Medium-Specific Information
         let mut message_data: [u8; 17] = [0; 17];
-        message_data[0] = CompletionCode::Success as u8;
+        message_data[0] = completion_code as u8;
         message_data[1..17].copy_from_slice(uuid);
 
         self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
@@ -158,7 +161,12 @@ impl MCTPSMBusContextResponse {
     /// `buf`: A mutable buffer to store the request bytes.
     ///
     /// Returns the length of the response.
-    pub fn get_mctp_version_support(&self, dest_addr: u8, buf: &mut [u8]) -> Result<usize, ()> {
+    pub fn get_mctp_version_support(
+        &self,
+        completion_code: CompletionCode,
+        dest_addr: u8,
+        buf: &mut [u8],
+    ) -> Result<usize, ()> {
         let command_header =
             MCTPControlMessageHeader::new(false, false, 0, CommandCode::GetMCTPVersionSupport);
         let message_header = Some(&(command_header.0[..]));
@@ -166,7 +174,7 @@ impl MCTPSMBusContextResponse {
         // Completion code
         // Version Number entry count: 1
         // Version: 1.3.1
-        let message_data: [u8; 6] = [CompletionCode::Success as u8, 1, 0xF1, 0xF3, 0xF1, 0x00];
+        let message_data: [u8; 6] = [completion_code as u8, 1, 0xF1, 0xF3, 0xF1, 0x00];
 
         self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
@@ -183,6 +191,7 @@ impl MCTPSMBusContextResponse {
     /// Returns the length of the response.
     pub fn get_message_type_suport(
         &self,
+        completion_code: CompletionCode,
         dest_addr: u8,
         supported_msg_types: &[u8],
         buf: &mut [u8],
@@ -196,7 +205,7 @@ impl MCTPSMBusContextResponse {
         //  * List of Message Type numbers
         let msg_type_count = supported_msg_types.len() as usize;
         let mut message_data: [u8; 32] = [0; 32];
-        message_data[0] = CompletionCode::Success as u8;
+        message_data[0] = completion_code as u8;
         message_data[1] = msg_type_count as u8;
 
         if supported_msg_types.len() > 30 {
@@ -239,6 +248,7 @@ impl MCTPSMBusContextResponse {
     /// Returns the length of the response.
     pub fn get_vendor_defined_message_support(
         &self,
+        completion_code: CompletionCode,
         dest_addr: u8,
         vendor_id_selector: u8,
         vendor_id: &[u8],
@@ -259,7 +269,7 @@ impl MCTPSMBusContextResponse {
         //    or organization identified by the vendor ID
         let vendor_length = vendor_id.len() as usize;
         let mut message_data: [u8; 9] = [
-            CompletionCode::Success as u8,
+            completion_code as u8,
             vendor_id_selector,
             0, // Vendor ID Format
             0, // PCI Vendor ID or IANA Enterprise Number
@@ -342,6 +352,7 @@ mod tests {
 
         let len = ctx
             .set_endpoint_id(
+                CompletionCode::Success,
                 DEST_ID,
                 MCTPSetEndpointIDAssignmentStatus::Accpeted,
                 MCTPSetEndpointIDAllocationStatus::NoIDPool,
@@ -389,6 +400,7 @@ mod tests {
 
         let len = ctx
             .get_endpoint_id(
+                CompletionCode::Success,
                 DEST_ID,
                 MCTPGetEndpointIDEndpointType::Simple,
                 MCTPGetEndpointIDEndpointIDType::DynamicEID,
@@ -436,7 +448,9 @@ mod tests {
             0x0E, 0x0F,
         ];
 
-        let len = ctx.get_endpoint_uuid(DEST_ID, &uuid, &mut buf).unwrap();
+        let len = ctx
+            .get_endpoint_uuid(CompletionCode::Success, DEST_ID, &uuid, &mut buf)
+            .unwrap();
 
         assert_eq!(len, 28);
 
@@ -467,7 +481,9 @@ mod tests {
         let ctx = MCTPSMBusContextResponse::new(SOURCE_ID);
         let mut buf: [u8; 21] = [0; 21];
 
-        let len = ctx.get_mctp_version_support(DEST_ID, &mut buf).unwrap();
+        let len = ctx
+            .get_mctp_version_support(CompletionCode::Success, DEST_ID, &mut buf)
+            .unwrap();
 
         assert_eq!(len, 17);
 
@@ -507,7 +523,7 @@ mod tests {
         let msg_types = [0x7E];
 
         let len = ctx
-            .get_message_type_suport(DEST_ID, &msg_types, &mut buf)
+            .get_message_type_suport(CompletionCode::Success, DEST_ID, &msg_types, &mut buf)
             .unwrap();
 
         assert_eq!(len, 14);
@@ -544,7 +560,13 @@ mod tests {
         ];
 
         let len = ctx
-            .get_vendor_defined_message_support(DEST_ID, 0xFF, &vendor_id, &mut buf)
+            .get_vendor_defined_message_support(
+                CompletionCode::Success,
+                DEST_ID,
+                0xFF,
+                &vendor_id,
+                &mut buf,
+            )
             .unwrap();
 
         assert_eq!(len, 18);

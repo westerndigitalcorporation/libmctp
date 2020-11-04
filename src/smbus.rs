@@ -13,10 +13,22 @@
 //! ## Generate a MCTP request
 //! ```rust
 //!     use libmctp::control_packet::MCTPVersionQuery;
-//!     use libmctp::smbus::MCTPSMBusContext;
+//!     use libmctp::smbus::{MCTPSMBusContext, VendorIDFormat};
 //!
+//!     // The address of this device
 //!     const MY_ID: u8 = 0x23;
-//!     let ctx = MCTPSMBusContext::new(MY_ID);
+//!     // Support vendor defined protocol 0x7E
+//!     let msg_types: [u8; 1] = [0x7E];
+//!     // Specify a PCI vendor ID that we support
+//!     let vendor_ids = [VendorIDFormat {
+//!         // PCI Vendor ID
+//!         format: 0x00,
+//!         // PCI VID
+//!         data: 0x1414,
+//!         // Extra data
+//!         numeric_value: 4,
+//!     }];
+//!     let ctx = MCTPSMBusContext::new(MY_ID, &msg_types, &vendor_ids);
 //!
 //!     let mut buf: [u8; 32] = [0; 32];
 //!
@@ -32,16 +44,29 @@
 //!
 //! ## Generate a MCTP response
 //! ```rust
-//!     use libmctp::control_packet::MCTPVersionQuery;
-//!     use libmctp::smbus::MCTPSMBusContext;
+//!     use libmctp::control_packet::{CompletionCode, MCTPVersionQuery};
+//!     use libmctp::smbus::{MCTPSMBusContext, VendorIDFormat};
 //!
+//!     // The address of this device
 //!     const MY_ID: u8 = 0x23;
-//!     let ctx = MCTPSMBusContext::new(MY_ID);
+//!     // Support vendor defined protocol 0x7E
+//!     let msg_types: [u8; 1] = [0x7E];
+//!     // Specify a PCI vendor ID that we support
+//!     let vendor_ids = [VendorIDFormat {
+//!         // PCI Vendor ID
+//!         format: 0x00,
+//!         // PCI VID
+//!         data: 0x1414,
+//!         // Extra data
+//!         numeric_value: 4,
+//!     }];
+//!     let ctx = MCTPSMBusContext::new(MY_ID, &msg_types, &vendor_ids);
 //!
 //!     let mut buf: [u8; 32] = [0; 32];
 //!
 //!     const DEST_ID: u8 = 0x34;
 //!     let len = ctx.get_response().get_mctp_version_support(
+//!         CompletionCode::Success,
 //!         DEST_ID,
 //!         &mut buf,
 //!     );
@@ -52,10 +77,22 @@
 //! ## Decode a packet received
 //! ```rust
 //!     use libmctp::control_packet::MCTPVersionQuery;
-//!     use libmctp::smbus::MCTPSMBusContext;
+//!     use libmctp::smbus::{MCTPSMBusContext, VendorIDFormat};
 //!
+//!     // The address of this device
 //!     const MY_ID: u8 = 0x23;
-//!     let ctx = MCTPSMBusContext::new(MY_ID);
+//!     // Support vendor defined protocol 0x7E
+//!     let msg_types: [u8; 1] = [0x7E];
+//!     // Specify a PCI vendor ID that we support
+//!     let vendor_ids = [VendorIDFormat {
+//!         // PCI Vendor ID
+//!         format: 0x00,
+//!         // PCI VID
+//!         data: 0x1414,
+//!         // Extra data
+//!         numeric_value: 4,
+//!     }];
+//!     let ctx = MCTPSMBusContext::new(MY_ID, &msg_types, &vendor_ids);
 //!     let mut buf: [u8; 32] = [0; 32];
 //!
 //!     // Receive data into buf from SMBus
@@ -68,10 +105,22 @@
 //! ## Process a request to generate a response
 //! ```rust
 //!     use libmctp::control_packet::MCTPVersionQuery;
-//!     use libmctp::smbus::MCTPSMBusContext;
+//!     use libmctp::smbus::{MCTPSMBusContext, VendorIDFormat};
 //!
+//!     // The address of this device
 //!     const MY_ID: u8 = 0x23;
-//!     let ctx = MCTPSMBusContext::new(MY_ID);
+//!     // Support vendor defined protocol 0x7E
+//!     let msg_types: [u8; 1] = [0x7E];
+//!     // Specify a PCI vendor ID that we support
+//!     let vendor_ids = [VendorIDFormat {
+//!         // PCI Vendor ID
+//!         format: 0x00,
+//!         // PCI VID
+//!         data: 0x1414,
+//!         // Extra data
+//!         numeric_value: 4,
+//!     }];
+//!     let ctx = MCTPSMBusContext::new(MY_ID, &msg_types, &vendor_ids);
 //!     let mut buf_request: [u8; 32] = [0; 32];
 //!     let mut buf_response: [u8; 32] = [0; 32];
 //!
@@ -85,12 +134,17 @@
 use crate::base_packet::{
     MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader, MessageType,
 };
-use crate::control_packet::{CommandCode, CompletionCode, MCTPControlMessageHeader};
+use crate::control_packet::{
+    CommandCode, CompletionCode, MCTPControlMessageHeader, MCTPGetEndpointIDEndpointIDType,
+    MCTPGetEndpointIDEndpointType, MCTPSetEndpointIDAllocationStatus,
+    MCTPSetEndpointIDAssignmentStatus, MCTPSetEndpointIDOperations,
+};
 use crate::errors::{ControlMessageError, DecodeError};
-use crate::mctp_traits::MCTPControlMessageRequest;
+use crate::mctp_traits::{MCTPControlMessageRequest, SMBusMCTPRequestResponse};
 use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket, HDR_VERSION};
 use crate::smbus_request::MCTPSMBusContextRequest;
 use crate::smbus_response::MCTPSMBusContextResponse;
+use core::cell::Cell;
 
 /// The returned data for SMBus headers
 type SMBusHeaders = (
@@ -109,20 +163,40 @@ type ControlRawPacketData<'a, 'b> = (
     MCTPMessageBody<'a, 'b>,
 );
 
-/// The global context for MCTP SMBus operations
-pub struct MCTPSMBusContext {
-    request: MCTPSMBusContextRequest,
-    response: MCTPSMBusContextResponse,
+/// The Vendor ID Format as described in table 21
+pub struct VendorIDFormat {
+    /// The Vendor ID Format
+    ///  * PCI Vendor ID: 0
+    ///  * IANA Enterprise Number: 1
+    pub format: u8,
+    /// The vendor ID data, either 2 or 4 bytes
+    pub data: u32,
+    /// An extra 2 bytes
+    pub numeric_value: u16,
 }
 
-impl MCTPSMBusContext {
+/// The global context for MCTP SMBus operations
+pub struct MCTPSMBusContext<'m> {
+    request: MCTPSMBusContextRequest,
+    response: MCTPSMBusContextResponse,
+    uuid: [u8; 16],
+    msg_types: &'m [u8],
+    vendor_id_selector: Cell<u8>,
+    vendor_ids: &'m [VendorIDFormat],
+}
+
+impl<'m> MCTPSMBusContext<'m> {
     /// Create a new SBMust context
     ///
     /// `address`: The source address of this device.
-    pub fn new(address: u8) -> Self {
+    pub fn new(address: u8, msg_types: &'m [u8], vendor_ids: &'m [VendorIDFormat]) -> Self {
         Self {
             request: MCTPSMBusContextRequest::new(address),
             response: MCTPSMBusContextResponse::new(address),
+            uuid: [0; 16],
+            msg_types,
+            vendor_id_selector: Cell::new(0),
+            vendor_ids,
         }
     }
 
@@ -136,6 +210,11 @@ impl MCTPSMBusContext {
     /// This can be used to manually generate specific packets
     pub fn get_response(&self) -> &MCTPSMBusContextResponse {
         &self.response
+    }
+
+    /// Set the Unique Identifier for this device
+    pub fn set_uuid(&mut self, uuid: &[u8]) {
+        self.uuid.copy_from_slice(uuid)
     }
 
     /// Get the SMBus headers from a packet
@@ -299,21 +378,141 @@ impl MCTPSMBusContext {
                     let len;
 
                     match header.command_code().into() {
-                        CommandCode::Reserved => unimplemented!(),
-                        CommandCode::SetEndpointID => unimplemented!(),
-                        CommandCode::GetEndpointID => unimplemented!(),
-                        CommandCode::GetEndpointUUID => unimplemented!(),
+                        CommandCode::Reserved => unreachable!(),
+                        CommandCode::SetEndpointID => {
+                            if payload[0] == MCTPSetEndpointIDOperations::SetEID as u8
+                                || payload[0] == MCTPSetEndpointIDOperations::ForceEID as u8
+                            {
+                                self.get_response().set_eid(payload[1]);
+                                self.get_request().set_eid(payload[1]);
+                                len = self
+                                    .get_response()
+                                    .set_endpoint_id(
+                                        CompletionCode::Success,
+                                        base_header.source_endpoint_id(),
+                                        MCTPSetEndpointIDAssignmentStatus::Accpeted,
+                                        MCTPSetEndpointIDAllocationStatus::NoIDPool,
+                                        response_buf,
+                                    )
+                                    .unwrap();
+                            } else if payload[0] == MCTPSetEndpointIDOperations::ResetEID as u8 {
+                                unimplemented!()
+                            } else if payload[0]
+                                == MCTPSetEndpointIDOperations::SetDiscoveredFlag as u8
+                            {
+                                len = self
+                                    .get_response()
+                                    .set_endpoint_id(
+                                        CompletionCode::ErrorInvalidData,
+                                        base_header.source_endpoint_id(),
+                                        MCTPSetEndpointIDAssignmentStatus::Accpeted,
+                                        MCTPSetEndpointIDAllocationStatus::NoIDPool,
+                                        response_buf,
+                                    )
+                                    .unwrap();
+                            } else {
+                                unreachable!()
+                            }
+                        }
+                        CommandCode::GetEndpointID => {
+                            len = self
+                                .get_response()
+                                .get_endpoint_id(
+                                    CompletionCode::Success,
+                                    base_header.source_endpoint_id(),
+                                    MCTPGetEndpointIDEndpointType::Simple,
+                                    MCTPGetEndpointIDEndpointIDType::DynamicEID,
+                                    false,
+                                    response_buf,
+                                )
+                                .unwrap();
+                        }
+                        CommandCode::GetEndpointUUID => {
+                            len = self
+                                .get_response()
+                                .get_endpoint_uuid(
+                                    CompletionCode::Success,
+                                    base_header.source_endpoint_id(),
+                                    &self.uuid,
+                                    response_buf,
+                                )
+                                .unwrap();
+                        }
                         CommandCode::GetMCTPVersionSupport => {
                             len = self
                                 .get_response()
                                 .get_mctp_version_support(
+                                    CompletionCode::Success,
                                     base_header.source_endpoint_id(),
                                     response_buf,
                                 )
                                 .unwrap();
                         }
-                        CommandCode::GetMessageTypeSupport => unimplemented!(),
-                        CommandCode::GetVendorDefinedMessageSupport => unimplemented!(),
+                        CommandCode::GetMessageTypeSupport => {
+                            len = self
+                                .get_response()
+                                .get_message_type_suport(
+                                    CompletionCode::Success,
+                                    base_header.source_endpoint_id(),
+                                    &self.msg_types,
+                                    response_buf,
+                                )
+                                .unwrap();
+                        }
+                        CommandCode::GetVendorDefinedMessageSupport => {
+                            if (payload[0] + 1) == self.vendor_ids.len() as u8 {
+                                // Set the Vendor ID Set Selector as the end
+                                self.vendor_id_selector.set(0xFF);
+                            } else {
+                                // Set the Vendor ID Set Selector from the request
+                                self.vendor_id_selector.set(payload[0] + 1);
+                            }
+
+                            let vendor_id = &self.vendor_ids[payload[0] as usize];
+                            if vendor_id.format == 0 {
+                                let vendor_data = [
+                                    vendor_id.format,
+                                    (vendor_id.data >> 8) as u8,
+                                    vendor_id.data as u8,
+                                    (vendor_id.numeric_value >> 8) as u8,
+                                    vendor_id.numeric_value as u8,
+                                ];
+
+                                len = self
+                                    .get_response()
+                                    .get_vendor_defined_message_support(
+                                        CompletionCode::Success,
+                                        base_header.source_endpoint_id(),
+                                        self.vendor_id_selector.get(),
+                                        &vendor_data,
+                                        response_buf,
+                                    )
+                                    .unwrap();
+                            } else if vendor_id.format == 1 {
+                                let vendor_data = [
+                                    vendor_id.format,
+                                    (vendor_id.data >> 24) as u8,
+                                    (vendor_id.data >> 16) as u8,
+                                    (vendor_id.data >> 8) as u8,
+                                    vendor_id.data as u8,
+                                    (vendor_id.numeric_value >> 8) as u8,
+                                    vendor_id.numeric_value as u8,
+                                ];
+
+                                len = self
+                                    .get_response()
+                                    .get_vendor_defined_message_support(
+                                        CompletionCode::Success,
+                                        base_header.source_endpoint_id(),
+                                        self.vendor_id_selector.get(),
+                                        &vendor_data,
+                                        response_buf,
+                                    )
+                                    .unwrap();
+                            } else {
+                                unreachable!()
+                            };
+                        }
                         CommandCode::ResolveEndpointID => unimplemented!(),
                         CommandCode::AllocateEndpointIDs => unimplemented!(),
                         CommandCode::RoutingInformationUpdate => unimplemented!(),
@@ -350,7 +549,7 @@ impl MCTPSMBusContext {
 }
 
 #[cfg(test)]
-mod tests {
+mod version_supported_tests {
     use super::*;
     use crate::control_packet::MCTPVersionQuery;
 
@@ -359,7 +558,17 @@ mod tests {
         const DEST_ID: u8 = 0x23;
         const SOURCE_ID: u8 = 0x34;
 
-        let ctx = MCTPSMBusContext::new(SOURCE_ID);
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
         let mut buf: [u8; 12] = [0; 12];
 
         let _len = ctx.get_request().get_mctp_version_support(
@@ -380,12 +589,22 @@ mod tests {
         const DEST_ID: u8 = 0x23;
         const SOURCE_ID: u8 = 0x23;
 
-        let ctx = MCTPSMBusContext::new(SOURCE_ID);
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
         let mut buf: [u8; 17] = [0; 17];
 
-        let _len = ctx
-            .get_response()
-            .get_mctp_version_support(DEST_ID, &mut buf);
+        let _len =
+            ctx.get_response()
+                .get_mctp_version_support(CompletionCode::Success, DEST_ID, &mut buf);
 
         let (msg_type, payload) = ctx.decode_packet(&buf).unwrap();
 
@@ -405,15 +624,23 @@ mod tests {
         const DEST_ID: u8 = 0x23;
         const SOURCE_ID: u8 = 0x23;
 
-        let ctx = MCTPSMBusContext::new(SOURCE_ID);
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
         let mut buf: [u8; 17] = [0; 17];
 
-        let _len = ctx
-            .get_response()
-            .get_mctp_version_support(DEST_ID, &mut buf);
-
-        // Set the packet as invalid
-        buf[11] = CompletionCode::ErrorInvalidData as u8;
+        let _len = ctx.get_response().get_mctp_version_support(
+            CompletionCode::ErrorInvalidData,
+            DEST_ID,
+            &mut buf,
+        );
 
         let error = ctx.decode_packet(&buf);
 
@@ -438,7 +665,17 @@ mod tests {
         const DEST_ID: u8 = 0x23;
         const SOURCE_ID: u8 = 0x34;
 
-        let ctx_request = MCTPSMBusContext::new(SOURCE_ID);
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx_request = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
         let mut buf_request: [u8; 12] = [0; 12];
 
         let _len = ctx_request.get_request().get_mctp_version_support(
@@ -447,7 +684,7 @@ mod tests {
             &mut buf_request,
         );
 
-        let ctx_response = MCTPSMBusContext::new(DEST_ID);
+        let ctx_response = MCTPSMBusContext::new(DEST_ID, &msg_types, &vendor_ids);
         let mut buf_response: [u8; 17] = [0; 17];
 
         let (_, len) = ctx_response
