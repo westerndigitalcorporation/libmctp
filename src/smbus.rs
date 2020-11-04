@@ -314,7 +314,7 @@ impl<'m> MCTPSMBusContext<'m> {
 
         let data = &packet[payload_offset..];
 
-        if data.len() != body_additional_header_len {
+        if body_additional_header_len > 0 && data.len() != body_additional_header_len {
             return Err((
                 MessageType::MCtpControl,
                 DecodeError::ControlMessage(ControlMessageError::InvalidRequestDataLength),
@@ -549,6 +549,609 @@ impl<'m> MCTPSMBusContext<'m> {
 }
 
 #[cfg(test)]
+mod set_endpoint_id_tests {
+    use super::*;
+
+    #[test]
+    fn test_decode_request() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+        const EID: u8 = 0x56;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf: [u8; 13] = [0; 13];
+
+        let _len = ctx.get_request().set_endpoint_id(
+            DEST_ID,
+            MCTPSetEndpointIDOperations::SetEID,
+            EID,
+            &mut buf,
+        );
+
+        let (msg_type, payload) = ctx.decode_packet(&buf).unwrap();
+
+        assert_eq!(msg_type, MessageType::MCtpControl);
+        assert_eq!(payload.len(), 2);
+        assert_eq!(payload[1], EID as u8);
+    }
+
+    #[test]
+    fn test_decode_response() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x23;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf: [u8; 15] = [0; 15];
+
+        let _len = ctx.get_response().set_endpoint_id(
+            CompletionCode::Success,
+            DEST_ID,
+            MCTPSetEndpointIDAssignmentStatus::Accpeted,
+            MCTPSetEndpointIDAllocationStatus::NoIDPool,
+            &mut buf,
+        );
+
+        let (msg_type, payload) = ctx.decode_packet(&buf).unwrap();
+
+        assert_eq!(msg_type, MessageType::MCtpControl);
+        assert_eq!(payload.len(), 3);
+        // EID Status
+        assert_eq!(
+            payload[0],
+            (MCTPSetEndpointIDAssignmentStatus::Accpeted as u8) << 4
+                | MCTPSetEndpointIDAllocationStatus::NoIDPool as u8
+        );
+        // EID Setting
+        assert_eq!(payload[1], 0);
+        // Pool Size
+        assert_eq!(payload[2], 0);
+    }
+
+    #[test]
+    fn test_decode_invalid_response() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x23;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf: [u8; 17] = [0; 17];
+
+        let _len = ctx.get_response().set_endpoint_id(
+            CompletionCode::ErrorInvalidData,
+            DEST_ID,
+            MCTPSetEndpointIDAssignmentStatus::Accpeted,
+            MCTPSetEndpointIDAllocationStatus::NoIDPool,
+            &mut buf,
+        );
+
+        let error = ctx.decode_packet(&buf);
+
+        match error {
+            Ok(_) => {
+                panic!("Didn't get the error we expect");
+            }
+            Err((msg_type, decode_error)) => {
+                assert_eq!(msg_type, MessageType::MCtpControl);
+                assert_eq!(
+                    decode_error,
+                    DecodeError::ControlMessage(ControlMessageError::UnsuccessfulCompletionCode(
+                        CompletionCode::ErrorInvalidData
+                    ))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_process_request() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+        const EID: u8 = 0x56;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx_request = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf_request: [u8; 13] = [0; 13];
+
+        let _len = ctx_request.get_request().set_endpoint_id(
+            DEST_ID,
+            MCTPSetEndpointIDOperations::SetEID,
+            EID,
+            &mut buf_request,
+        );
+
+        let ctx_response = MCTPSMBusContext::new(DEST_ID, &msg_types, &vendor_ids);
+        let mut buf_response: [u8; 15] = [0; 15];
+
+        let (_, len) = ctx_response
+            .process_packet(&buf_request, &mut buf_response)
+            .unwrap();
+
+        assert_eq!(len.unwrap(), 15);
+
+        // Destination address
+        assert_eq!(buf_response[0], SOURCE_ID << 1);
+
+        // Byte count
+        assert_eq!(buf_response[2], 12);
+
+        // IC and Message Type
+        assert_eq!(buf_response[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf_response[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+
+        // Command Code
+        assert_eq!(buf_response[10], CommandCode::SetEndpointID as u8);
+        // Completion Code
+        assert_eq!(buf_response[11], CompletionCode::Success as u8);
+
+        // EID Status
+        assert_eq!(
+            buf_response[12],
+            (MCTPSetEndpointIDAssignmentStatus::Accpeted as u8) << 4
+                | MCTPSetEndpointIDAllocationStatus::NoIDPool as u8
+        );
+        // EID Setting
+        assert_eq!(buf_response[13], EID);
+        // Pool Size
+        assert_eq!(buf_response[14], 0);
+    }
+}
+
+#[cfg(test)]
+mod get_endpoint_id_tests {
+    use super::*;
+
+    #[test]
+    fn test_decode_request() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf: [u8; 11] = [0; 11];
+
+        let _len = ctx.get_request().get_endpoint_id(DEST_ID, &mut buf);
+
+        let (msg_type, payload) = ctx.decode_packet(&buf).unwrap();
+
+        assert_eq!(msg_type, MessageType::MCtpControl);
+        assert_eq!(payload.len(), 0);
+    }
+
+    #[test]
+    fn test_decode_response() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x23;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf: [u8; 16] = [0; 16];
+
+        let _len = ctx.get_response().get_endpoint_id(
+            CompletionCode::Success,
+            DEST_ID,
+            MCTPGetEndpointIDEndpointType::Simple,
+            MCTPGetEndpointIDEndpointIDType::DynamicEID,
+            true,
+            &mut buf,
+        );
+
+        let (msg_type, payload) = ctx.decode_packet(&buf).unwrap();
+
+        assert_eq!(msg_type, MessageType::MCtpControl);
+        assert_eq!(payload.len(), 4);
+        // Endpoint ID
+        assert_eq!(payload[0], 0);
+        // Endpoint Type
+        assert_eq!(payload[1], 0);
+        // Medium Specific information
+        assert_eq!(payload[2], 1);
+    }
+
+    #[test]
+    fn test_decode_invalid_response() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x23;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf: [u8; 17] = [0; 17];
+
+        let _len = ctx.get_response().get_endpoint_id(
+            CompletionCode::ErrorInvalidData,
+            DEST_ID,
+            MCTPGetEndpointIDEndpointType::Simple,
+            MCTPGetEndpointIDEndpointIDType::DynamicEID,
+            true,
+            &mut buf,
+        );
+
+        let error = ctx.decode_packet(&buf);
+
+        match error {
+            Ok(_) => {
+                panic!("Didn't get the error we expect");
+            }
+            Err((msg_type, decode_error)) => {
+                assert_eq!(msg_type, MessageType::MCtpControl);
+                assert_eq!(
+                    decode_error,
+                    DecodeError::ControlMessage(ControlMessageError::UnsuccessfulCompletionCode(
+                        CompletionCode::ErrorInvalidData
+                    ))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_process_request() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx_request = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf_request: [u8; 11] = [0; 11];
+
+        let _len = ctx_request
+            .get_request()
+            .get_endpoint_id(DEST_ID, &mut buf_request);
+
+        let ctx_response = MCTPSMBusContext::new(DEST_ID, &msg_types, &vendor_ids);
+        let mut buf_response: [u8; 15] = [0; 15];
+
+        let (_, len) = ctx_response
+            .process_packet(&buf_request, &mut buf_response)
+            .unwrap();
+
+        assert_eq!(len.unwrap(), 15);
+
+        // Destination address
+        assert_eq!(buf_response[0], SOURCE_ID << 1);
+
+        // Byte count
+        assert_eq!(buf_response[2], 12);
+
+        // IC and Message Type
+        assert_eq!(buf_response[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf_response[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+
+        // Command Code
+        assert_eq!(buf_response[10], CommandCode::GetEndpointID as u8);
+        // Completion Code
+        assert_eq!(buf_response[11], CompletionCode::Success as u8);
+
+        // Endpoint ID
+        assert_eq!(buf_response[12], 0);
+        // Endpoint Type
+        assert_eq!(buf_response[13], 0);
+        // Medium Specific information
+        assert_eq!(buf_response[14], 0);
+    }
+
+    #[test]
+    fn test_process_get_set_request() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+        const EID: u8 = 0x56;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx_request = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let ctx_response = MCTPSMBusContext::new(DEST_ID, &msg_types, &vendor_ids);
+
+        // Set ID
+        let mut buf_request: [u8; 13] = [0; 13];
+
+        let _len = ctx_request.get_request().set_endpoint_id(
+            DEST_ID,
+            MCTPSetEndpointIDOperations::SetEID,
+            EID,
+            &mut buf_request,
+        );
+        let mut buf_response: [u8; 15] = [0; 15];
+        let (_, _len) = ctx_response
+            .process_packet(&buf_request, &mut buf_response)
+            .unwrap();
+
+        // Get ID
+        let mut buf_request: [u8; 11] = [0; 11];
+
+        let _len = ctx_request
+            .get_request()
+            .get_endpoint_id(DEST_ID, &mut buf_request);
+
+        let mut buf_response: [u8; 15] = [0; 15];
+
+        let (_, len) = ctx_response
+            .process_packet(&buf_request, &mut buf_response)
+            .unwrap();
+
+        assert_eq!(len.unwrap(), 15);
+
+        // Destination address
+        assert_eq!(buf_response[0], SOURCE_ID << 1);
+
+        // Byte count
+        assert_eq!(buf_response[2], 12);
+
+        // IC and Message Type
+        assert_eq!(buf_response[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf_response[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+
+        // Command Code
+        assert_eq!(buf_response[10], CommandCode::GetEndpointID as u8);
+        // Completion Code
+        assert_eq!(buf_response[11], CompletionCode::Success as u8);
+
+        // Endpoint ID
+        assert_eq!(buf_response[12], EID);
+        // Endpoint Type
+        assert_eq!(buf_response[13], 0);
+        // Medium Specific information
+        assert_eq!(buf_response[14], 0);
+    }
+}
+
+#[cfg(test)]
+mod get_endpoint_uuid_tests {
+    use super::*;
+
+    #[test]
+    fn test_decode_request() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf: [u8; 11] = [0; 11];
+
+        let _len = ctx.get_request().get_endpoint_uuid(DEST_ID, &mut buf);
+
+        let (msg_type, payload) = ctx.decode_packet(&buf).unwrap();
+
+        assert_eq!(msg_type, MessageType::MCtpControl);
+        assert_eq!(payload.len(), 0);
+    }
+
+    #[test]
+    fn test_decode_response() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x23;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let uuid: [u8; 16] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+            0x0E, 0x0F,
+        ];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf: [u8; 28] = [0; 28];
+
+        let _len =
+            ctx.get_response()
+                .get_endpoint_uuid(CompletionCode::Success, DEST_ID, &uuid, &mut buf);
+
+        let (msg_type, payload) = ctx.decode_packet(&buf).unwrap();
+
+        assert_eq!(msg_type, MessageType::MCtpControl);
+        assert_eq!(payload.len(), 16);
+        // UUID
+        for (i, d) in uuid.iter().enumerate() {
+            assert_eq!(payload[i], *d);
+        }
+    }
+
+    #[test]
+    fn test_decode_invalid_response() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x23;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+        let uuid: [u8; 16] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+            0x0E, 0x0F,
+        ];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf: [u8; 28] = [0; 28];
+
+        let _len = ctx.get_response().get_endpoint_uuid(
+            CompletionCode::ErrorInvalidData,
+            DEST_ID,
+            &uuid,
+            &mut buf,
+        );
+
+        let error = ctx.decode_packet(&buf);
+
+        match error {
+            Ok(_) => {
+                panic!("Didn't get the error we expect");
+            }
+            Err((msg_type, decode_error)) => {
+                assert_eq!(msg_type, MessageType::MCtpControl);
+                assert_eq!(
+                    decode_error,
+                    DecodeError::ControlMessage(ControlMessageError::UnsuccessfulCompletionCode(
+                        CompletionCode::ErrorInvalidData
+                    ))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_process_request() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let uuid: [u8; 16] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+            0x0E, 0x0F,
+        ];
+
+        let ctx_request = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf_request: [u8; 11] = [0; 11];
+
+        let len = ctx_request
+            .get_request()
+            .get_endpoint_uuid(DEST_ID, &mut buf_request);
+
+        assert_eq!(len.unwrap(), 11);
+
+        let mut ctx_response = MCTPSMBusContext::new(DEST_ID, &msg_types, &vendor_ids);
+        let mut buf_response: [u8; 32] = [0; 32];
+
+        ctx_response.set_uuid(&uuid);
+
+        let (_, len) = ctx_response
+            .process_packet(&buf_request, &mut buf_response)
+            .unwrap();
+
+        assert_eq!(len.unwrap(), 28);
+
+        // Destination address
+        assert_eq!(buf_response[0], SOURCE_ID << 1);
+
+        // Byte count
+        assert_eq!(buf_response[2], 25);
+
+        // IC and Message Type
+        assert_eq!(buf_response[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf_response[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+
+        // Command Code
+        assert_eq!(buf_response[10], CommandCode::GetEndpointUUID as u8);
+        // Completion Code
+        assert_eq!(buf_response[11], CompletionCode::Success as u8);
+
+        for (i, d) in uuid.iter().enumerate() {
+            assert_eq!(buf_response[12 + i], *d);
+        }
+    }
+}
+
+#[cfg(test)]
 mod version_supported_tests {
     use super::*;
     use crate::control_packet::MCTPVersionQuery;
@@ -719,5 +1322,356 @@ mod version_supported_tests {
         assert_eq!(buf_response[15], 0xF1);
         // Alpha byte
         assert_eq!(buf_response[16], 0x00);
+    }
+}
+
+#[cfg(test)]
+mod get_message_type_suport_tests {
+    use super::*;
+
+    #[test]
+    fn test_decode_request() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf: [u8; 11] = [0; 11];
+
+        let _len = ctx.get_request().get_message_type_suport(DEST_ID, &mut buf);
+
+        let (msg_type, payload) = ctx.decode_packet(&buf).unwrap();
+
+        assert_eq!(msg_type, MessageType::MCtpControl);
+        assert_eq!(payload.len(), 0);
+    }
+
+    #[test]
+    fn test_decode_response() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x23;
+
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+        let msg_types = [0x7E];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf: [u8; 17] = [0; 17];
+
+        let _len = ctx.get_response().get_message_type_suport(
+            CompletionCode::Success,
+            DEST_ID,
+            &msg_types,
+            &mut buf,
+        );
+
+        let (msg_type, payload) = ctx.decode_packet(&buf).unwrap();
+
+        assert_eq!(msg_type, MessageType::MCtpControl);
+        assert_eq!(payload.len(), 5);
+        // MCTP Message Count
+        assert_eq!(payload[0], msg_types.len() as u8);
+        // List of Message Types
+        assert_eq!(payload[1], msg_types[0]);
+    }
+
+    #[test]
+    fn test_decode_invalid_response() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x23;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf: [u8; 17] = [0; 17];
+
+        let _len = ctx.get_response().get_message_type_suport(
+            CompletionCode::ErrorInvalidData,
+            DEST_ID,
+            &msg_types,
+            &mut buf,
+        );
+
+        let error = ctx.decode_packet(&buf);
+
+        match error {
+            Ok(_) => {
+                panic!("Didn't get the error we expect");
+            }
+            Err((msg_type, decode_error)) => {
+                assert_eq!(msg_type, MessageType::MCtpControl);
+                assert_eq!(
+                    decode_error,
+                    DecodeError::ControlMessage(ControlMessageError::UnsuccessfulCompletionCode(
+                        CompletionCode::ErrorInvalidData
+                    ))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_process_request() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+        let msg_types = [0x7E, 0xAD, 0xA1];
+
+        let ctx_request = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf_request: [u8; 11] = [0; 11];
+
+        let _len = ctx_request
+            .get_request()
+            .get_message_type_suport(DEST_ID, &mut buf_request);
+
+        let ctx_response = MCTPSMBusContext::new(DEST_ID, &msg_types, &vendor_ids);
+        let mut buf_response: [u8; 17] = [0; 17];
+
+        let (_, len) = ctx_response
+            .process_packet(&buf_request, &mut buf_response)
+            .unwrap();
+
+        assert_eq!(len.unwrap(), 13 + msg_types.len());
+
+        // Destination address
+        assert_eq!(buf_response[0], SOURCE_ID << 1);
+
+        // Byte count
+        assert_eq!(buf_response[2], 10 + msg_types.len() as u8);
+
+        // IC and Message Type
+        assert_eq!(buf_response[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf_response[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+
+        // Command Code
+        assert_eq!(buf_response[10], CommandCode::GetMessageTypeSupport as u8);
+        // Completion Code
+        assert_eq!(buf_response[11], CompletionCode::Success as u8);
+
+        // MCTP Message Count
+        assert_eq!(buf_response[12], msg_types.len() as u8);
+        // List of Message Types
+        for (i, d) in msg_types.iter().enumerate() {
+            assert_eq!(buf_response[13 + i], *d);
+        }
+    }
+}
+
+#[cfg(test)]
+mod get_vendor_defined_message_support_tests {
+    use super::*;
+
+    #[test]
+    fn test_decode_request() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf: [u8; 12] = [0; 12];
+
+        let _len = ctx
+            .get_request()
+            .get_vendor_defined_message_support(DEST_ID, 0x00, &mut buf);
+
+        let (msg_type, payload) = ctx.decode_packet(&buf).unwrap();
+
+        assert_eq!(msg_type, MessageType::MCtpControl);
+        assert_eq!(payload.len(), 1);
+        // Vendor ID Set Selector
+        assert_eq!(payload[0], 0x00);
+    }
+
+    #[test]
+    fn test_decode_response() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x23;
+
+        let msg_types = [0x7E];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+        let vendor_id = [
+            0x00, // PCI Vendor
+            0xAB, 0xBC, 0x12, 0x34,
+        ];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf: [u8; 18] = [0; 18];
+
+        let _len = ctx.get_response().get_vendor_defined_message_support(
+            CompletionCode::Success,
+            DEST_ID,
+            0xFF,
+            &vendor_id,
+            &mut buf,
+        );
+
+        let (msg_type, payload) = ctx.decode_packet(&buf).unwrap();
+
+        assert_eq!(msg_type, MessageType::MCtpControl);
+        assert_eq!(payload.len(), 6);
+        // Vendor ID Set Selector
+        assert_eq!(payload[0], 0xFF);
+        // Vendor ID
+        for (i, d) in vendor_id.iter().enumerate() {
+            assert_eq!(payload[1 + i], *d);
+        }
+    }
+
+    #[test]
+    fn test_decode_invalid_response() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x23;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+        let vendor_id = [
+            0x00, // PCI Vendor
+            0xAB, 0xBC, 0x12, 0x34,
+        ];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf: [u8; 18] = [0; 18];
+
+        let _len = ctx.get_response().get_vendor_defined_message_support(
+            CompletionCode::ErrorInvalidData,
+            DEST_ID,
+            0xFF,
+            &vendor_id,
+            &mut buf,
+        );
+
+        let error = ctx.decode_packet(&buf);
+
+        match error {
+            Ok(_) => {
+                panic!("Didn't get the error we expect");
+            }
+            Err((msg_type, decode_error)) => {
+                assert_eq!(msg_type, MessageType::MCtpControl);
+                assert_eq!(
+                    decode_error,
+                    DecodeError::ControlMessage(ControlMessageError::UnsuccessfulCompletionCode(
+                        CompletionCode::ErrorInvalidData
+                    ))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_process_request() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let msg_types = [0x7E, 0xAD, 0xA1];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+        let vendor_id = [
+            0x00, // PCI Vendor
+            0x12, 0x34, 0x00, 0xAB,
+        ];
+
+        let ctx_request = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let mut buf_request: [u8; 12] = [0; 12];
+
+        let _len = ctx_request
+            .get_request()
+            .get_vendor_defined_message_support(DEST_ID, 0x00, &mut buf_request);
+
+        let ctx_response = MCTPSMBusContext::new(DEST_ID, &msg_types, &vendor_ids);
+        let mut buf_response: [u8; 18] = [0; 18];
+
+        let (_, len) = ctx_response
+            .process_packet(&buf_request, &mut buf_response)
+            .unwrap();
+
+        assert_eq!(len.unwrap(), 18);
+
+        // Destination address
+        assert_eq!(buf_response[0], SOURCE_ID << 1);
+
+        // Byte count
+        assert_eq!(buf_response[2], 15);
+
+        // IC and Message Type
+        assert_eq!(buf_response[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf_response[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+
+        // Command Code
+        assert_eq!(
+            buf_response[10],
+            CommandCode::GetVendorDefinedMessageSupport as u8
+        );
+        // Completion Code
+        assert_eq!(buf_response[11], CompletionCode::Success as u8);
+
+        // Vendor ID Set Selector
+        assert_eq!(buf_response[12], 0xFF);
+        // Vendor ID
+        for (i, d) in vendor_id.iter().enumerate() {
+            assert_eq!(buf_response[13 + i], *d);
+        }
     }
 }

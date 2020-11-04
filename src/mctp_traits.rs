@@ -60,15 +60,16 @@ pub(crate) trait MCTPControlMessageRequest {
     }
 
     /// Get the length of the response data command
+    /// A return value of zero indicates a variable length
     fn get_response_data_len(&self) -> usize {
         match self.command_code().into() {
             CommandCode::Reserved => 0,
-            CommandCode::SetEndpointID => 4,
+            CommandCode::SetEndpointID => 3,
             CommandCode::GetEndpointID => 4,
-            CommandCode::GetEndpointUUID => 17,
+            CommandCode::GetEndpointUUID => 16,
             CommandCode::GetMCTPVersionSupport => 5,
-            CommandCode::GetMessageTypeSupport => unimplemented!(),
-            CommandCode::GetVendorDefinedMessageSupport => unimplemented!(),
+            CommandCode::GetMessageTypeSupport => 0,
+            CommandCode::GetVendorDefinedMessageSupport => 0,
             CommandCode::ResolveEndpointID => unimplemented!(),
             CommandCode::AllocateEndpointIDs => 4,
             CommandCode::RoutingInformationUpdate => 1,

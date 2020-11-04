@@ -50,6 +50,7 @@ impl MCTPSMBusContextResponse {
 
     /// Assigns an EID to the endpoint at the given physical address
     ///
+    /// `completion_code`: Indicates the completion code we should return.
     /// `dest_addr`: The address to send the data to.
     /// `assignment_status`: EID assignment status
     /// `allocation_status`: Endpoint ID allocation status
@@ -92,6 +93,7 @@ impl MCTPSMBusContextResponse {
     /// information about what type the endpoint is and its level of use of
     /// static EIDs.
     ///
+    /// `completion_code`: Indicates the completion code we should return.
     /// `dest_addr`: The address to send the data to.
     /// `endpoint_type`: Endpoint Type
     /// `endpoint_id_type`: Endpoint ID Type
@@ -128,6 +130,7 @@ impl MCTPSMBusContextResponse {
 
     /// Retrieves a per-device unique UUID associated with the endpoint
     ///
+    /// `completion_code`: Indicates the completion code we should return.
     /// `dest_addr`: The address to send the data to.
     /// `uuid`: A reference to an array containing the UUID
     /// `buf`: A mutable buffer to store the request bytes.
@@ -157,6 +160,7 @@ impl MCTPSMBusContextResponse {
 
     /// Generate a response to the MCTP Version request supported by a device.
     ///
+    /// `completion_code`: Indicates the completion code we should return.
     /// `dest_addr`: The address to send the data to.
     /// `buf`: A mutable buffer to store the request bytes.
     ///
@@ -181,6 +185,7 @@ impl MCTPSMBusContextResponse {
 
     /// Lists the message types that an endpoint supports
     ///
+    /// `completion_code`: Indicates the completion code we should return.
     /// `dest_addr`: The address to send the data to.
     /// `supported_msg_types`: A slice to an array of bytes listing the
     ///  supported MCTP message types, this should NOT include the control
@@ -226,6 +231,7 @@ impl MCTPSMBusContextResponse {
 
     /// Used to discover an MCTP endpoint’s vendor-specific MCTP extensions and capabilities
     ///
+    /// `completion_code`: Indicates the completion code we should return.
     /// `dest_addr`: The address to send the data to.
     /// `vendor_id_selector`: The vendor ID set returned.
     ///  Indicates the specific capability set requested. Indices start at

@@ -340,7 +340,7 @@ mod tests {
     fn test_get_vendor_defined_message_support() {
         const DEST_ID: u8 = 0x23;
         const SOURCE_ID: u8 = 0x23;
-        const VENDOR_ID: u8 = 0x7E;
+        const VENDOR_ID: u8 = 0x00;
 
         let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
         let mut buf: [u8; 21] = [0; 21];
