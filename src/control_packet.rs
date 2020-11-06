@@ -223,6 +223,33 @@ pub enum MCTPVersionQuery {
     DSP0261_2 = 0x03,
 }
 
+/// The operation requested when calling Allocate Endpoint IDs
+pub enum AllocateEndpointIDOperation {
+    /// Submit an EID pool allocation
+    AllocateEIDs = 0b00,
+    /// Force bridge to accept this EID pool regardless of whether it has
+    /// already received its EID pool from another bus
+    ForceAllocation = 0b01,
+    /// Return the response parameters without changing the present allocation
+    GetAllocationInformation = 0b10,
+}
+
+/// The Routing Information Update Entry Type
+pub enum RoutingInformationUpdateEntryType {
+    /// Entry corresponds to a single endpoint that is not serving as an
+    /// MCTP bridge
+    SingleEndpointNotBridge = 0b00,
+    /// entry reflects an EID range for a bridge where the starting EID is
+    /// the EID of the bridge itself and additional EIDs in the range are
+    /// routed by the bridge
+    EIDRangeIncludeBridge = 0b01,
+    /// entry is for a single endpoint that is serving as an MCTP bridge
+    SingleEndpointBridge = 0b10,
+    /// entry is an EID range for a bridge, but does not include the EID of
+    /// the bridge itself
+    EIDRangeNotIncludeBridge = 0b11,
+}
+
 impl MCTPControlMessageHeader<[u8; 2]> {
     /// Create a new MCTPControlMessageHeader.
     ///

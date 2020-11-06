@@ -1,9 +1,11 @@
 //! The SMBus specific CMTP request protocol implementation.
 
 use crate::control_packet::{
-    CommandCode, MCTPControlMessageHeader, MCTPSetEndpointIDOperations, MCTPVersionQuery,
+    AllocateEndpointIDOperation, CommandCode, MCTPControlMessageHeader,
+    MCTPSetEndpointIDOperations, MCTPVersionQuery,
 };
 use crate::mctp_traits::SMBusMCTPRequestResponse;
+use crate::smbus_proto::SMBusRoutingInformationUpdateEntry;
 use core::cell::Cell;
 
 /// The context for MCTP SMBus request protocol operations
@@ -172,12 +174,101 @@ impl MCTPSMBusContextRequest {
 
         self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
+
+    /// Used to get the physical address associated with a given EID
+    ///
+    /// `dest_addr`: The address to send the data to.
+    /// `endpont_id`: The EID that the bus owner is being asked to resolve.
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query on success.
+    pub fn resolve_endpoint_id(
+        &self,
+        dest_addr: u8,
+        endpont_id: u8,
+        buf: &mut [u8],
+    ) -> Result<usize, ()> {
+        let command_header =
+            MCTPControlMessageHeader::new(true, false, 0, CommandCode::ResolveEndpointID);
+        let message_header = Some(&(command_header.0[..]));
+
+        let message_data: [u8; 1] = [endpont_id];
+
+        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+    }
+
+    /// Used by the bus owner to allocate a pool of EIDs to an MCTP bridge
+    ///
+    /// `dest_addr`: The address to send the data to.
+    /// `operation`: The type of operation
+    /// `pool_size`: Number of Endpoint IDs(Allocated Pool Size)
+    /// `starting_eid`: Specifies the starting EID for the range of EIDs being
+    ///                 allocated in the pool
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query on success.
+    pub fn allocate_endpoint_ids(
+        &self,
+        dest_addr: u8,
+        operation: AllocateEndpointIDOperation,
+        pool_size: u8,
+        starting_eid: u8,
+        buf: &mut [u8],
+    ) -> Result<usize, ()> {
+        let command_header =
+            MCTPControlMessageHeader::new(true, false, 0, CommandCode::AllocateEndpointIDs);
+        let message_header = Some(&(command_header.0[..]));
+
+        let message_data: [u8; 3] = [operation as u8, pool_size, starting_eid];
+
+        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+    }
+
+    /// Used by the bus owner to extend or update the routing information that
+    /// is maintained by an MCTP bridge
+    ///
+    /// `dest_addr`: The address to send the data to.
+    /// `entries`: One or more update entries, based on the given count
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query on success.
+    pub fn routing_information_update(
+        &self,
+        dest_addr: u8,
+        entries: &[SMBusRoutingInformationUpdateEntry<[u8; 4]>],
+        buf: &mut [u8],
+    ) -> Result<usize, ()> {
+        let command_header =
+            MCTPControlMessageHeader::new(true, false, 0, CommandCode::RoutingInformationUpdate);
+        let message_header = Some(&(command_header.0[..]));
+
+        let num_entries = entries.len();
+        let mut message_data: [u8; 32] = [0; 32];
+        message_data[0] = num_entries as u8;
+
+        if num_entries * 4 > 31 {
+            return Err(());
+        }
+
+        for (i, entry) in entries.iter().enumerate() {
+            let offset = 1 + (i * 4);
+            message_data[offset..(offset + 4)].copy_from_slice(&entry.0);
+        }
+
+        self.generate_packet_bytes(
+            dest_addr,
+            &message_header,
+            &message_data[0..(1 + num_entries * 4)],
+            buf,
+        )
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::base_packet::MessageType;
+    use crate::control_packet::RoutingInformationUpdateEntryType;
     use crate::smbus_proto::{HDR_VERSION, MCTP_SMBUS_COMMAND_CODE};
 
     #[test]
@@ -360,5 +451,107 @@ mod tests {
         assert_eq!(buf[10], CommandCode::GetVendorDefinedMessageSupport as u8);
         // Vendor ID
         assert_eq!(buf[11], VENDOR_ID);
+    }
+
+    #[test]
+    fn test_resolve_endpoint_id() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+        const EID: u8 = 0x56;
+
+        let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
+        let mut buf: [u8; 21] = [0; 21];
+
+        let len = ctx.resolve_endpoint_id(DEST_ID, EID, &mut buf).unwrap();
+
+        assert_eq!(len, 12);
+        // Byte count
+        assert_eq!(buf[2], 9);
+        // IC and Message Type
+        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        // Command Code
+        assert_eq!(buf[10], CommandCode::ResolveEndpointID as u8);
+        // EID
+        assert_eq!(buf[11], EID);
+    }
+
+    #[test]
+    fn test_allocate_endpoint_ids() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
+        let mut buf: [u8; 21] = [0; 21];
+
+        let len = ctx
+            .allocate_endpoint_ids(
+                DEST_ID,
+                AllocateEndpointIDOperation::AllocateEIDs,
+                3,
+                1,
+                &mut buf,
+            )
+            .unwrap();
+
+        assert_eq!(len, 14);
+        // Byte count
+        assert_eq!(buf[2], 11);
+        // IC and Message Type
+        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        // Command Code
+        assert_eq!(buf[10], CommandCode::AllocateEndpointIDs as u8);
+        // Operation
+        assert_eq!(buf[11], AllocateEndpointIDOperation::AllocateEIDs as u8);
+        // Pool Size
+        assert_eq!(buf[12], 3);
+        // Starting ID
+        assert_eq!(buf[13], 1);
+    }
+
+    #[test]
+    fn test_routing_information_update() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
+        let mut buf: [u8; 21] = [0; 21];
+
+        let entries = [SMBusRoutingInformationUpdateEntry::new(
+            RoutingInformationUpdateEntryType::EIDRangeNotIncludeBridge,
+            1,
+            1,
+            SOURCE_ID,
+        )];
+
+        let len = ctx
+            .routing_information_update(DEST_ID, &entries, &mut buf)
+            .unwrap();
+
+        assert_eq!(len, 16);
+        // Byte count
+        assert_eq!(buf[2], 13);
+        // IC and Message Type
+        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        // Command Code
+        assert_eq!(buf[10], CommandCode::RoutingInformationUpdate as u8);
+        // Count
+        assert_eq!(buf[11], 1);
+        // Entry Type
+        assert_eq!(
+            buf[12],
+            RoutingInformationUpdateEntryType::EIDRangeNotIncludeBridge as u8
+        );
+        // Size of EID Range
+        assert_eq!(buf[13], 1);
+        // First EID
+        assert_eq!(buf[14], 1);
+        // Physical Address
+        assert_eq!(buf[15], SOURCE_ID);
     }
 }

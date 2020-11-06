@@ -3,6 +3,7 @@
 //! This is the low level packet construction
 
 use crate::base_packet::{MCTPMessageBody, MCTPTransportHeader};
+use crate::control_packet::RoutingInformationUpdateEntryType;
 use crate::mctp_traits::MCTPHeader;
 
 /// The binary representation of the header version used by SMBus
@@ -114,5 +115,48 @@ impl<'a, 'b> MCTPHeader for MCTPSMBusPacket<'a, 'b> {
         size += self.data_bytes.to_raw_bytes(&mut buf[size..]);
 
         size
+    }
+}
+
+bitfield! {
+    /// The MCTP SMBus/I2C Routing Information Update Entry Format
+    pub struct SMBusRoutingInformationUpdateEntry([u8]);
+    u8;
+    /// Entry Type
+    pub entry_type, set_entry_type: 3, 0;
+    _rsvd, _: 7, 4;
+    /// Size of EID Range. The count of EIDs in the range.
+    pub eid_range_size, set_eid_range_size: 15, 8;
+    /// First EID in EID Range
+    pub first_eid, set_first_eid: 23, 16;
+    /// Physical address
+    pub physical_address, set_physical_address: 31, 24;
+}
+
+impl SMBusRoutingInformationUpdateEntry<[u8; 4]> {
+    /// Create a new SMBusRoutingInformationUpdateEntry.
+    pub fn new(
+        entry_type: RoutingInformationUpdateEntryType,
+        range_size: u8,
+        first_eid: u8,
+        physical_address: u8,
+    ) -> Self {
+        let buf = [0; 4];
+        let mut format = SMBusRoutingInformationUpdateEntry(buf);
+
+        format.set_entry_type(entry_type as u8);
+        format.set_eid_range_size(range_size);
+        format.set_first_eid(first_eid);
+        format.set_physical_address(physical_address);
+
+        format
+    }
+
+    /// Create a new `SMBusRoutingInformationUpdateEntry` from an existing buffer.
+    ///
+    /// `buffer`: The existing buffer for the `SMBusRoutingInformationUpdateEntry`
+    /// No checks are performed on the `buffer`.
+    pub fn new_from_buf(buf: [u8; 4]) -> Self {
+        SMBusRoutingInformationUpdateEntry(buf)
     }
 }
