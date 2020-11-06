@@ -5,6 +5,7 @@
 use crate::base_packet::{MCTPMessageBody, MCTPTransportHeader};
 use crate::control_packet::RoutingInformationUpdateEntryType;
 use crate::mctp_traits::MCTPHeader;
+use smbus_pec::pec;
 
 /// The binary representation of the header version used by SMBus
 pub const HDR_VERSION: u8 = 0b001;
@@ -81,7 +82,7 @@ impl<'a, 'b> MCTPSMBusPacket<'a, 'b> {
     ///
     /// Currently this just sets the total byte count.
     fn finalise(&mut self) {
-        self.smbus_header.set_byte_count(self.len() as u8 - 3);
+        self.smbus_header.set_byte_count(self.len() as u8 - 4);
     }
 }
 
@@ -93,6 +94,7 @@ impl<'a, 'b> MCTPHeader for MCTPSMBusPacket<'a, 'b> {
         size += 4;
         size += 4;
         size += self.data_bytes.len();
+        size += 1;
 
         size
     }
@@ -113,6 +115,9 @@ impl<'a, 'b> MCTPHeader for MCTPSMBusPacket<'a, 'b> {
         size += 4;
 
         size += self.data_bytes.to_raw_bytes(&mut buf[size..]);
+
+        buf[size] = pec(&buf[0..size]);
+        size += 1;
 
         size
     }

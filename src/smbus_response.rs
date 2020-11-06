@@ -366,7 +366,7 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(len, 15);
+        assert_eq!(len, 16);
 
         // Byte count
         assert_eq!(buf[2], 12);
@@ -415,7 +415,7 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(len, 15);
+        assert_eq!(len, 16);
 
         // Byte count
         assert_eq!(buf[2], 12);
@@ -458,7 +458,7 @@ mod tests {
             .get_endpoint_uuid(CompletionCode::Success, DEST_ID, &uuid, &mut buf)
             .unwrap();
 
-        assert_eq!(len, 28);
+        assert_eq!(len, 29);
 
         // Byte count
         assert_eq!(buf[2], 25);
@@ -491,7 +491,7 @@ mod tests {
             .get_mctp_version_support(CompletionCode::Success, DEST_ID, &mut buf)
             .unwrap();
 
-        assert_eq!(len, 17);
+        assert_eq!(len, 18);
 
         // Byte count
         assert_eq!(buf[2], 14);
@@ -532,7 +532,7 @@ mod tests {
             .get_message_type_suport(CompletionCode::Success, DEST_ID, &msg_types, &mut buf)
             .unwrap();
 
-        assert_eq!(len, 14);
+        assert_eq!(len, 15);
 
         // Byte count
         assert_eq!(buf[2], 11);
@@ -575,7 +575,7 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(len, 18);
+        assert_eq!(len, 19);
 
         // Byte count
         assert_eq!(buf[2], 15);

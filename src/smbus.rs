@@ -145,6 +145,7 @@ use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket, HDR_VERSION};
 use crate::smbus_request::MCTPSMBusContextRequest;
 use crate::smbus_response::MCTPSMBusContextResponse;
 use core::cell::Cell;
+use smbus_pec::pec;
 
 /// The returned data for SMBus headers
 type SMBusHeaders = (
@@ -258,10 +259,16 @@ impl<'m> MCTPSMBusContext<'m> {
     ) -> Result<ControlDecodedPacketData<'a>, (MessageType, DecodeError)> {
         let (smbus_header, base_header, body_header) = self.get_smbus_headers(packet)?;
 
+        let calculated_pec = pec(&packet[0..(packet.len() - 1)]);
+
         match body_header.msg_type().into() {
-            MessageType::MCtpControl => {
-                self.decode_mctp_control(&smbus_header, &base_header, &body_header, &packet[9..])
-            }
+            MessageType::MCtpControl => self.decode_mctp_control(
+                &smbus_header,
+                &base_header,
+                &body_header,
+                &packet[9..],
+                calculated_pec,
+            ),
             MessageType::VendorDefinedPCI => unimplemented!(),
             MessageType::VendorDefinedIANA => unimplemented!(),
             _ => Err((MessageType::Invalid, DecodeError::Unknown)),
@@ -275,6 +282,7 @@ impl<'m> MCTPSMBusContext<'m> {
         _base_header: &MCTPTransportHeader<[u8; 4]>,
         body_header: &'b MCTPMessageBodyHeader<[u8; 1]>,
         packet: &'a [u8],
+        calculated_pec: u8,
     ) -> Result<ControlRawPacketData<'a, 'b>, (MessageType, DecodeError)> {
         // Decode the header
         let mut control_message_header_buf: [u8; 2] = [0; 2];
@@ -312,7 +320,17 @@ impl<'m> MCTPSMBusContext<'m> {
                 }
             };
 
-        let data = &packet[payload_offset..];
+        let payload_len = packet.len() - 1;
+
+        let data = &packet[payload_offset..payload_len];
+        let pec = packet[payload_len];
+
+        if pec != calculated_pec {
+            return Err((
+                MessageType::MCtpControl,
+                DecodeError::ControlMessage(ControlMessageError::InvalidPEC),
+            ));
+        }
 
         if body_additional_header_len > 0 && data.len() != body_additional_header_len {
             return Err((
@@ -335,9 +353,15 @@ impl<'m> MCTPSMBusContext<'m> {
         base_header: &MCTPTransportHeader<[u8; 4]>,
         body_header: &'b MCTPMessageBodyHeader<[u8; 1]>,
         packet: &'a [u8],
+        calculated_pec: u8,
     ) -> Result<ControlDecodedPacketData<'a>, (MessageType, DecodeError)> {
-        let (_header, _compl_com, body) =
-            self.get_mctp_control_packet(smbus_header, base_header, body_header, packet)?;
+        let (_header, _compl_com, body) = self.get_mctp_control_packet(
+            smbus_header,
+            base_header,
+            body_header,
+            packet,
+            calculated_pec,
+        )?;
         Ok((MessageType::MCtpControl, body.data))
     }
 
@@ -365,11 +389,14 @@ impl<'m> MCTPSMBusContext<'m> {
                 let (mut smbus_header, base_header, body_header) =
                     self.get_smbus_headers(packet)?;
 
+                let calculated_pec = pec(&packet[0..(packet.len() - 1)]);
+
                 let (header, compl_com, body) = self.get_mctp_control_packet(
                     &smbus_header,
                     &base_header,
                     &body_header,
                     &packet[9..],
+                    calculated_pec,
                 )?;
 
                 let _packet = MCTPSMBusPacket::new(&mut smbus_header, &base_header, &body);
@@ -569,7 +596,7 @@ mod set_endpoint_id_tests {
         }];
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 13] = [0; 13];
+        let mut buf: [u8; 14] = [0; 14];
 
         let _len = ctx.get_request().set_endpoint_id(
             DEST_ID,
@@ -601,7 +628,7 @@ mod set_endpoint_id_tests {
         }];
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 15] = [0; 15];
+        let mut buf: [u8; 16] = [0; 16];
 
         let _len = ctx.get_response().set_endpoint_id(
             CompletionCode::Success,
@@ -687,7 +714,7 @@ mod set_endpoint_id_tests {
         }];
 
         let ctx_request = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf_request: [u8; 13] = [0; 13];
+        let mut buf_request: [u8; 14] = [0; 14];
 
         let _len = ctx_request.get_request().set_endpoint_id(
             DEST_ID,
@@ -697,13 +724,13 @@ mod set_endpoint_id_tests {
         );
 
         let ctx_response = MCTPSMBusContext::new(DEST_ID, &msg_types, &vendor_ids);
-        let mut buf_response: [u8; 15] = [0; 15];
+        let mut buf_response: [u8; 16] = [0; 16];
 
         let (_, len) = ctx_response
             .process_packet(&buf_request, &mut buf_response)
             .unwrap();
 
-        assert_eq!(len.unwrap(), 15);
+        assert_eq!(len.unwrap(), 16);
 
         // Destination address
         assert_eq!(buf_response[0], SOURCE_ID << 1);
@@ -754,7 +781,7 @@ mod get_endpoint_id_tests {
         }];
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 11] = [0; 11];
+        let mut buf: [u8; 12] = [0; 12];
 
         let _len = ctx.get_request().get_endpoint_id(DEST_ID, &mut buf);
 
@@ -780,7 +807,7 @@ mod get_endpoint_id_tests {
         }];
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 16] = [0; 16];
+        let mut buf: [u8; 17] = [0; 17];
 
         let _len = ctx.get_response().get_endpoint_id(
             CompletionCode::Success,
@@ -863,20 +890,20 @@ mod get_endpoint_id_tests {
         }];
 
         let ctx_request = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf_request: [u8; 11] = [0; 11];
+        let mut buf_request: [u8; 12] = [0; 12];
 
         let _len = ctx_request
             .get_request()
             .get_endpoint_id(DEST_ID, &mut buf_request);
 
         let ctx_response = MCTPSMBusContext::new(DEST_ID, &msg_types, &vendor_ids);
-        let mut buf_response: [u8; 15] = [0; 15];
+        let mut buf_response: [u8; 17] = [0; 17];
 
         let (_, len) = ctx_response
             .process_packet(&buf_request, &mut buf_response)
             .unwrap();
 
-        assert_eq!(len.unwrap(), 15);
+        assert_eq!(len.unwrap(), 16);
 
         // Destination address
         assert_eq!(buf_response[0], SOURCE_ID << 1);
@@ -922,7 +949,7 @@ mod get_endpoint_id_tests {
         let ctx_response = MCTPSMBusContext::new(DEST_ID, &msg_types, &vendor_ids);
 
         // Set ID
-        let mut buf_request: [u8; 13] = [0; 13];
+        let mut buf_request: [u8; 14] = [0; 14];
 
         let _len = ctx_request.get_request().set_endpoint_id(
             DEST_ID,
@@ -930,25 +957,25 @@ mod get_endpoint_id_tests {
             EID,
             &mut buf_request,
         );
-        let mut buf_response: [u8; 15] = [0; 15];
+        let mut buf_response: [u8; 16] = [0; 16];
         let (_, _len) = ctx_response
             .process_packet(&buf_request, &mut buf_response)
             .unwrap();
 
         // Get ID
-        let mut buf_request: [u8; 11] = [0; 11];
+        let mut buf_request: [u8; 12] = [0; 12];
 
         let _len = ctx_request
             .get_request()
             .get_endpoint_id(DEST_ID, &mut buf_request);
 
-        let mut buf_response: [u8; 15] = [0; 15];
+        let mut buf_response: [u8; 16] = [0; 16];
 
         let (_, len) = ctx_response
             .process_packet(&buf_request, &mut buf_response)
             .unwrap();
 
-        assert_eq!(len.unwrap(), 15);
+        assert_eq!(len.unwrap(), 16);
 
         // Destination address
         assert_eq!(buf_response[0], SOURCE_ID << 1);
@@ -995,7 +1022,7 @@ mod get_endpoint_uuid_tests {
         }];
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 11] = [0; 11];
+        let mut buf: [u8; 12] = [0; 12];
 
         let _len = ctx.get_request().get_endpoint_uuid(DEST_ID, &mut buf);
 
@@ -1026,7 +1053,7 @@ mod get_endpoint_uuid_tests {
         ];
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 28] = [0; 28];
+        let mut buf: [u8; 29] = [0; 29];
 
         let _len =
             ctx.get_response()
@@ -1062,7 +1089,7 @@ mod get_endpoint_uuid_tests {
         ];
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 28] = [0; 28];
+        let mut buf: [u8; 29] = [0; 29];
 
         let _len = ctx.get_response().get_endpoint_uuid(
             CompletionCode::ErrorInvalidData,
@@ -1110,13 +1137,13 @@ mod get_endpoint_uuid_tests {
         ];
 
         let ctx_request = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf_request: [u8; 11] = [0; 11];
+        let mut buf_request: [u8; 12] = [0; 12];
 
         let len = ctx_request
             .get_request()
             .get_endpoint_uuid(DEST_ID, &mut buf_request);
 
-        assert_eq!(len.unwrap(), 11);
+        assert_eq!(len.unwrap(), 12);
 
         let mut ctx_response = MCTPSMBusContext::new(DEST_ID, &msg_types, &vendor_ids);
         let mut buf_response: [u8; 32] = [0; 32];
@@ -1127,7 +1154,7 @@ mod get_endpoint_uuid_tests {
             .process_packet(&buf_request, &mut buf_response)
             .unwrap();
 
-        assert_eq!(len.unwrap(), 28);
+        assert_eq!(len.unwrap(), 29);
 
         // Destination address
         assert_eq!(buf_response[0], SOURCE_ID << 1);
@@ -1172,7 +1199,7 @@ mod version_supported_tests {
         }];
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 12] = [0; 12];
+        let mut buf: [u8; 13] = [0; 13];
 
         let _len = ctx.get_request().get_mctp_version_support(
             DEST_ID,
@@ -1203,7 +1230,7 @@ mod version_supported_tests {
         }];
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 17] = [0; 17];
+        let mut buf: [u8; 18] = [0; 18];
 
         let _len =
             ctx.get_response()
@@ -1237,7 +1264,7 @@ mod version_supported_tests {
             numeric_value: 0xAB,
         }];
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 17] = [0; 17];
+        let mut buf: [u8; 18] = [0; 18];
 
         let _len = ctx.get_response().get_mctp_version_support(
             CompletionCode::ErrorInvalidData,
@@ -1279,7 +1306,7 @@ mod version_supported_tests {
         }];
 
         let ctx_request = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf_request: [u8; 12] = [0; 12];
+        let mut buf_request: [u8; 13] = [0; 13];
 
         let _len = ctx_request.get_request().get_mctp_version_support(
             DEST_ID,
@@ -1288,13 +1315,13 @@ mod version_supported_tests {
         );
 
         let ctx_response = MCTPSMBusContext::new(DEST_ID, &msg_types, &vendor_ids);
-        let mut buf_response: [u8; 17] = [0; 17];
+        let mut buf_response: [u8; 18] = [0; 18];
 
         let (_, len) = ctx_response
             .process_packet(&buf_request, &mut buf_response)
             .unwrap();
 
-        assert_eq!(len.unwrap(), 17);
+        assert_eq!(len.unwrap(), 18);
 
         // Destination address
         assert_eq!(buf_response[0], SOURCE_ID << 1);
@@ -1345,7 +1372,7 @@ mod get_message_type_suport_tests {
         }];
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 11] = [0; 11];
+        let mut buf: [u8; 12] = [0; 12];
 
         let _len = ctx.get_request().get_message_type_suport(DEST_ID, &mut buf);
 
@@ -1371,7 +1398,7 @@ mod get_message_type_suport_tests {
         let msg_types = [0x7E];
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 17] = [0; 17];
+        let mut buf: [u8; 18] = [0; 18];
 
         let _len = ctx.get_response().get_message_type_suport(
             CompletionCode::Success,
@@ -1406,7 +1433,7 @@ mod get_message_type_suport_tests {
         }];
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 17] = [0; 17];
+        let mut buf: [u8; 18] = [0; 18];
 
         let _len = ctx.get_response().get_message_type_suport(
             CompletionCode::ErrorInvalidData,
@@ -1449,20 +1476,20 @@ mod get_message_type_suport_tests {
         let msg_types = [0x7E, 0xAD, 0xA1];
 
         let ctx_request = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf_request: [u8; 11] = [0; 11];
+        let mut buf_request: [u8; 12] = [0; 12];
 
         let _len = ctx_request
             .get_request()
             .get_message_type_suport(DEST_ID, &mut buf_request);
 
         let ctx_response = MCTPSMBusContext::new(DEST_ID, &msg_types, &vendor_ids);
-        let mut buf_response: [u8; 17] = [0; 17];
+        let mut buf_response: [u8; 18] = [0; 18];
 
         let (_, len) = ctx_response
             .process_packet(&buf_request, &mut buf_response)
             .unwrap();
 
-        assert_eq!(len.unwrap(), 13 + msg_types.len());
+        assert_eq!(len.unwrap(), 14 + msg_types.len());
 
         // Destination address
         assert_eq!(buf_response[0], SOURCE_ID << 1);
@@ -1509,7 +1536,7 @@ mod get_vendor_defined_message_support_tests {
         }];
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 12] = [0; 12];
+        let mut buf: [u8; 13] = [0; 13];
 
         let _len = ctx
             .get_request()
@@ -1543,7 +1570,7 @@ mod get_vendor_defined_message_support_tests {
         ];
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 18] = [0; 18];
+        let mut buf: [u8; 19] = [0; 19];
 
         let _len = ctx.get_response().get_vendor_defined_message_support(
             CompletionCode::Success,
@@ -1585,7 +1612,7 @@ mod get_vendor_defined_message_support_tests {
         ];
 
         let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf: [u8; 18] = [0; 18];
+        let mut buf: [u8; 19] = [0; 19];
 
         let _len = ctx.get_response().get_vendor_defined_message_support(
             CompletionCode::ErrorInvalidData,
@@ -1633,20 +1660,20 @@ mod get_vendor_defined_message_support_tests {
         ];
 
         let ctx_request = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
-        let mut buf_request: [u8; 12] = [0; 12];
+        let mut buf_request: [u8; 13] = [0; 13];
 
         let _len = ctx_request
             .get_request()
             .get_vendor_defined_message_support(DEST_ID, 0x00, &mut buf_request);
 
         let ctx_response = MCTPSMBusContext::new(DEST_ID, &msg_types, &vendor_ids);
-        let mut buf_response: [u8; 18] = [0; 18];
+        let mut buf_response: [u8; 19] = [0; 19];
 
         let (_, len) = ctx_response
             .process_packet(&buf_request, &mut buf_response)
             .unwrap();
 
-        assert_eq!(len.unwrap(), 18);
+        assert_eq!(len.unwrap(), 19);
 
         // Destination address
         assert_eq!(buf_response[0], SOURCE_ID << 1);

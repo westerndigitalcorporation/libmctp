@@ -8,3 +8,4 @@ readme = "README.md"
 
 [dependencies]
 bitfield = "0.13.2"
+smbus-pec = "0.1.0"

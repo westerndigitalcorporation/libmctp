@@ -544,7 +544,7 @@ mod tests {
             .set_endpoint_id(DEST_ID, MCTPSetEndpointIDOperations::SetEID, EID, &mut buf)
             .unwrap();
 
-        assert_eq!(len, 13);
+        assert_eq!(len, 14);
         // Byte count
         assert_eq!(buf[2], 10);
         // IC and Message Type
@@ -569,7 +569,7 @@ mod tests {
 
         let len = ctx.get_endpoint_id(DEST_ID, &mut buf).unwrap();
 
-        assert_eq!(len, 11);
+        assert_eq!(len, 12);
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type
@@ -590,7 +590,7 @@ mod tests {
 
         let len = ctx.get_endpoint_uuid(DEST_ID, &mut buf).unwrap();
 
-        assert_eq!(len, 11);
+        assert_eq!(len, 12);
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type
@@ -613,7 +613,7 @@ mod tests {
             .get_mctp_version_support(DEST_ID, MCTPVersionQuery::MCTPBaseSpec, &mut buf)
             .unwrap();
 
-        assert_eq!(len, 12);
+        assert_eq!(len, 13);
         // Byte count
         assert_eq!(buf[2], 9);
         // IC and Message Type
@@ -636,7 +636,7 @@ mod tests {
 
         let len = ctx.get_message_type_suport(DEST_ID, &mut buf).unwrap();
 
-        assert_eq!(len, 11);
+        assert_eq!(len, 12);
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type
@@ -660,7 +660,7 @@ mod tests {
             .get_vendor_defined_message_support(DEST_ID, VENDOR_ID, &mut buf)
             .unwrap();
 
-        assert_eq!(len, 12);
+        assert_eq!(len, 13);
         // Byte count
         assert_eq!(buf[2], 9);
         // IC and Message Type
@@ -684,7 +684,7 @@ mod tests {
 
         let len = ctx.resolve_endpoint_id(DEST_ID, EID, &mut buf).unwrap();
 
-        assert_eq!(len, 12);
+        assert_eq!(len, 13);
         // Byte count
         assert_eq!(buf[2], 9);
         // IC and Message Type
@@ -715,7 +715,7 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(len, 14);
+        assert_eq!(len, 15);
         // Byte count
         assert_eq!(buf[2], 11);
         // IC and Message Type
@@ -751,7 +751,7 @@ mod tests {
             .routing_information_update(DEST_ID, &entries, &mut buf)
             .unwrap();
 
-        assert_eq!(len, 16);
+        assert_eq!(len, 17);
         // Byte count
         assert_eq!(buf[2], 13);
         // IC and Message Type
@@ -787,7 +787,7 @@ mod tests {
             .get_routing_table_entries(DEST_ID, 0x00, &mut buf)
             .unwrap();
 
-        assert_eq!(len, 12);
+        assert_eq!(len, 13);
         // Byte count
         assert_eq!(buf[2], 9);
         // IC and Message Type
@@ -812,7 +812,7 @@ mod tests {
             .prepare_for_endpoint_discovery(DEST_ID, &mut buf)
             .unwrap();
 
-        assert_eq!(len, 11);
+        assert_eq!(len, 12);
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type
@@ -833,7 +833,7 @@ mod tests {
 
         let len = ctx.endpoint_discovery(DEST_ID, &mut buf).unwrap();
 
-        assert_eq!(len, 11);
+        assert_eq!(len, 12);
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type
@@ -854,7 +854,7 @@ mod tests {
 
         let len = ctx.discovery_notify(DEST_ID, &mut buf).unwrap();
 
-        assert_eq!(len, 11);
+        assert_eq!(len, 12);
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type
@@ -875,7 +875,7 @@ mod tests {
 
         let len = ctx.get_network_id(DEST_ID, &mut buf).unwrap();
 
-        assert_eq!(len, 11);
+        assert_eq!(len, 12);
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type
@@ -899,7 +899,7 @@ mod tests {
             .query_hop(DEST_ID, TARGET_EID, MessageType::MCtpControl, &mut buf)
             .unwrap();
 
-        assert_eq!(len, 13);
+        assert_eq!(len, 14);
         // Byte count
         assert_eq!(buf[2], 10);
         // IC and Message Type
@@ -925,11 +925,11 @@ mod tests {
         ];
 
         let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
-        let mut buf: [u8; 28] = [0; 28];
+        let mut buf: [u8; 29] = [0; 29];
 
         let len = ctx.resolve_uuid(DEST_ID, &uuid, 0x00, &mut buf).unwrap();
 
-        assert_eq!(len, 28);
+        assert_eq!(len, 29);
         // Byte count
         assert_eq!(buf[2], 25);
         // IC and Message Type
@@ -956,7 +956,7 @@ mod tests {
 
         let len = ctx.query_rate_limit(DEST_ID, &mut buf).unwrap();
 
-        assert_eq!(len, 11);
+        assert_eq!(len, 12);
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type

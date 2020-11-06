@@ -13,6 +13,8 @@ pub enum ControlMessageError {
     InvalidControlHeader,
     ///
     UnsuccessfulCompletionCode(CompletionCode),
+    /// Invalid PEC
+    InvalidPEC,
 }
 
 #[derive(Debug, PartialEq)]
