@@ -1,5 +1,6 @@
 //! The SMBus specific CMTP request protocol implementation.
 
+use crate::base_packet::MessageType;
 use crate::control_packet::{
     AllocateEndpointIDOperation, CommandCode, MCTPControlMessageHeader,
     MCTPSetEndpointIDOperations, MCTPVersionQuery,
@@ -262,12 +263,231 @@ impl MCTPSMBusContextRequest {
             buf,
         )
     }
+
+    /// Used to request an MCTP bridge to return data corresponding to its
+    /// present routing table entries
+    ///
+    /// `dest_addr`: The address to send the data to.
+    /// `entry_handle`: Entry Handle (0x00to access first entries in table)
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query on success.
+    pub fn get_routing_table_entries(
+        &self,
+        dest_addr: u8,
+        entry_handle: u8,
+        buf: &mut [u8],
+    ) -> Result<usize, ()> {
+        let command_header =
+            MCTPControlMessageHeader::new(true, false, 0, CommandCode::GetRoutingTableEntries);
+        let message_header = Some(&(command_header.0[..]));
+
+        let message_data: [u8; 1] = [entry_handle];
+
+        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+    }
+
+    /// Used to direct endpoints to clear their “discovered”flags to enable
+    /// them to respond to the Endpoint Discovery command
+    ///
+    /// `dest_addr`: The address to send the data to.
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query on success.
+    pub fn prepare_for_endpoint_discovery(
+        &self,
+        dest_addr: u8,
+        buf: &mut [u8],
+    ) -> Result<usize, ()> {
+        let command_header =
+            MCTPControlMessageHeader::new(true, false, 0, CommandCode::PrepareForEndpointDiscovery);
+        let message_header = Some(&(command_header.0[..]));
+
+        let message_data: [u8; 0] = [0; 0];
+
+        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+    }
+
+    /// Used to discover MCTP-capable devices on a bus, provided that another
+    /// discovery mechanism is not defined for the particular physical medium
+    ///
+    /// `dest_addr`: The address to send the data to.
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query on success.
+    pub fn endpoint_discovery(&self, dest_addr: u8, buf: &mut [u8]) -> Result<usize, ()> {
+        let command_header =
+            MCTPControlMessageHeader::new(true, false, 0, CommandCode::EndpointDiscovery);
+        let message_header = Some(&(command_header.0[..]));
+
+        let message_data: [u8; 0] = [0; 0];
+
+        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+    }
+
+    /// Used to notify the bus owner that an MCTP device has become
+    /// available on the bus
+    ///
+    /// `dest_addr`: The address to send the data to.
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query on success.
+    pub fn discovery_notify(&self, dest_addr: u8, buf: &mut [u8]) -> Result<usize, ()> {
+        let command_header =
+            MCTPControlMessageHeader::new(true, false, 0, CommandCode::DiscoveryNotify);
+        let message_header = Some(&(command_header.0[..]));
+
+        let message_data: [u8; 0] = [0; 0];
+
+        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+    }
+
+    /// Used to get the MCTP networkID
+    ///
+    /// `dest_addr`: The address to send the data to.
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query on success.
+    pub fn get_network_id(&self, dest_addr: u8, buf: &mut [u8]) -> Result<usize, ()> {
+        let command_header =
+            MCTPControlMessageHeader::new(true, false, 0, CommandCode::GetNetworkID);
+        let message_header = Some(&(command_header.0[..]));
+
+        let message_data: [u8; 0] = [0; 0];
+
+        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+    }
+
+    /// Used to discover what bridges, if any, are in the path to a given
+    /// target endpoint and what transmission unit sizes the bridges will pass
+    /// for a given message type when routing to the target endpoint
+    ///
+    /// `dest_addr`: The address to send the data to.
+    /// `target_eid': Target Endpoint ID
+    /// `msg_type`: Message type for which transmission unit information is being requested
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query on success.
+    pub fn query_hop(
+        &self,
+        dest_addr: u8,
+        target_eid: u8,
+        msg_type: MessageType,
+        buf: &mut [u8],
+    ) -> Result<usize, ()> {
+        let command_header =
+            MCTPControlMessageHeader::new(true, false, 0, CommandCode::GetNetworkID);
+        let message_header = Some(&(command_header.0[..]));
+
+        let message_data: [u8; 2] = [target_eid, msg_type as u8];
+
+        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+    }
+
+    /// Used by endpoints to find another endpoint matching an endpoint
+    /// that uses a specific UUID
+    ///
+    /// `dest_addr`: The address to send the data to.
+    /// `uuid`: A reference to an array containing the UUID to request
+    /// `entry_handle`: Entry Handle (0x00 to access first entries in table)
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query on success.
+    pub fn resolve_uuid(
+        &self,
+        dest_addr: u8,
+        uuid: &[u8; 16],
+        entry_handle: u8,
+        buf: &mut [u8],
+    ) -> Result<usize, ()> {
+        let command_header =
+            MCTPControlMessageHeader::new(true, false, 0, CommandCode::ResolveUUID);
+        let message_header = Some(&(command_header.0[..]));
+
+        let mut message_data: [u8; 17] = [0; 17];
+        message_data[0..16].copy_from_slice(uuid);
+        message_data[16] = entry_handle;
+
+        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+    }
+
+    /// Used to discover the data rate limit settings of the given target for
+    /// incoming messages.
+    ///
+    /// `dest_addr`: The address to send the data to.
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query on success.
+    pub fn query_rate_limit(&self, dest_addr: u8, buf: &mut [u8]) -> Result<usize, ()> {
+        let command_header =
+            MCTPControlMessageHeader::new(true, false, 0, CommandCode::QueryRateLimit);
+        let message_header = Some(&(command_header.0[..]));
+
+        let message_data: [u8; 0] = [0; 0];
+
+        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+    }
+
+    /// Used to request the allowed transmit data rate limit for the
+    /// given endpoint for outgoing messages.
+    ///
+    /// `dest_addr`: The address to send the data to.
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query on success.
+    pub fn request_tx_rate_limit(&self, dest_addr: u8, buf: &mut [u8]) -> Result<usize, ()> {
+        let command_header =
+            MCTPControlMessageHeader::new(true, false, 0, CommandCode::RequestTXRateLimit);
+        let message_header = Some(&(command_header.0[..]));
+
+        let message_data: [u8; 0] = [0; 0];
+
+        let _ = self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf);
+
+        unimplemented!()
+    }
+
+    /// Used to update the receiving side on change to the transmit data
+    /// rate which was not requested by the receiver
+    ///
+    /// `dest_addr`: The address to send the data to.
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query on success.
+    pub fn update_rate_limmit(&self, dest_addr: u8, buf: &mut [u8]) -> Result<usize, ()> {
+        let command_header =
+            MCTPControlMessageHeader::new(true, false, 0, CommandCode::RequestTXRateLimit);
+        let message_header = Some(&(command_header.0[..]));
+
+        let message_data: [u8; 0] = [0; 0];
+
+        let _ = self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf);
+
+        unimplemented!()
+    }
+
+    /// Used to discover the existing device MCTP interfaces
+    ///
+    /// `dest_addr`: The address to send the data to.
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query on success.
+    pub fn query_supported_interfaces(&self, dest_addr: u8, buf: &mut [u8]) -> Result<usize, ()> {
+        let command_header =
+            MCTPControlMessageHeader::new(true, false, 0, CommandCode::RequestTXRateLimit);
+        let message_header = Some(&(command_header.0[..]));
+
+        let message_data: [u8; 0] = [0; 0];
+
+        let _ = self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf);
+
+        unimplemented!()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::base_packet::MessageType;
     use crate::control_packet::RoutingInformationUpdateEntryType;
     use crate::smbus_proto::{HDR_VERSION, MCTP_SMBUS_COMMAND_CODE};
 
@@ -553,5 +773,197 @@ mod tests {
         assert_eq!(buf[14], 1);
         // Physical Address
         assert_eq!(buf[15], SOURCE_ID);
+    }
+
+    #[test]
+    fn test_get_routing_table_entries() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
+        let mut buf: [u8; 21] = [0; 21];
+
+        let len = ctx
+            .get_routing_table_entries(DEST_ID, 0x00, &mut buf)
+            .unwrap();
+
+        assert_eq!(len, 12);
+        // Byte count
+        assert_eq!(buf[2], 9);
+        // IC and Message Type
+        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        // Command Code
+        assert_eq!(buf[10], CommandCode::GetRoutingTableEntries as u8);
+        // Entry Handle
+        assert_eq!(buf[11], 0x00);
+    }
+
+    #[test]
+    fn test_prepare_for_endpoint_discovery() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
+        let mut buf: [u8; 21] = [0; 21];
+
+        let len = ctx
+            .prepare_for_endpoint_discovery(DEST_ID, &mut buf)
+            .unwrap();
+
+        assert_eq!(len, 11);
+        // Byte count
+        assert_eq!(buf[2], 8);
+        // IC and Message Type
+        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        // Command Code
+        assert_eq!(buf[10], CommandCode::PrepareForEndpointDiscovery as u8);
+    }
+
+    #[test]
+    fn test_endpoint_discovery() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
+        let mut buf: [u8; 21] = [0; 21];
+
+        let len = ctx.endpoint_discovery(DEST_ID, &mut buf).unwrap();
+
+        assert_eq!(len, 11);
+        // Byte count
+        assert_eq!(buf[2], 8);
+        // IC and Message Type
+        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        // Command Code
+        assert_eq!(buf[10], CommandCode::EndpointDiscovery as u8);
+    }
+
+    #[test]
+    fn test_discovery_notify() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
+        let mut buf: [u8; 21] = [0; 21];
+
+        let len = ctx.discovery_notify(DEST_ID, &mut buf).unwrap();
+
+        assert_eq!(len, 11);
+        // Byte count
+        assert_eq!(buf[2], 8);
+        // IC and Message Type
+        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        // Command Code
+        assert_eq!(buf[10], CommandCode::DiscoveryNotify as u8);
+    }
+
+    #[test]
+    fn test_get_network_id() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
+        let mut buf: [u8; 21] = [0; 21];
+
+        let len = ctx.get_network_id(DEST_ID, &mut buf).unwrap();
+
+        assert_eq!(len, 11);
+        // Byte count
+        assert_eq!(buf[2], 8);
+        // IC and Message Type
+        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        // Command Code
+        assert_eq!(buf[10], CommandCode::GetNetworkID as u8);
+    }
+
+    #[test]
+    fn test_query_hop() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+        const TARGET_EID: u8 = 0x92;
+
+        let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
+        let mut buf: [u8; 21] = [0; 21];
+
+        let len = ctx
+            .query_hop(DEST_ID, TARGET_EID, MessageType::MCtpControl, &mut buf)
+            .unwrap();
+
+        assert_eq!(len, 13);
+        // Byte count
+        assert_eq!(buf[2], 10);
+        // IC and Message Type
+        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        // Command Code
+        assert_eq!(buf[10], CommandCode::GetNetworkID as u8);
+        // Target Endpoint ID
+        assert_eq!(buf[11], TARGET_EID);
+        // Message Type
+        assert_eq!(buf[12], MessageType::MCtpControl as u8);
+    }
+
+    #[test]
+    fn test_resolve_uuid() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let uuid: [u8; 16] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+            0x0E, 0x0F,
+        ];
+
+        let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
+        let mut buf: [u8; 28] = [0; 28];
+
+        let len = ctx.resolve_uuid(DEST_ID, &uuid, 0x00, &mut buf).unwrap();
+
+        assert_eq!(len, 28);
+        // Byte count
+        assert_eq!(buf[2], 25);
+        // IC and Message Type
+        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        // Command Code
+        assert_eq!(buf[10], CommandCode::ResolveUUID as u8);
+        // Endpoint ID
+        for (i, d) in uuid.iter().enumerate() {
+            assert_eq!(buf[11 + i], *d);
+        }
+        // Entry Handle
+        assert_eq!(buf[27], 0);
+    }
+
+    #[test]
+    fn test_query_rate_limit() {
+        const DEST_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x34;
+
+        let ctx = MCTPSMBusContextRequest::new(SOURCE_ID);
+        let mut buf: [u8; 21] = [0; 21];
+
+        let len = ctx.query_rate_limit(DEST_ID, &mut buf).unwrap();
+
+        assert_eq!(len, 11);
+        // Byte count
+        assert_eq!(buf[2], 8);
+        // IC and Message Type
+        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        // Rq, D, rsvd and Instance ID
+        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        // Command Code
+        assert_eq!(buf[10], CommandCode::QueryRateLimit as u8);
     }
 }
