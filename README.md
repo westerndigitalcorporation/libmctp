@@ -21,7 +21,7 @@ For details and examples on using libMCTP see the auto generated Rust docs.
 
 ## License
 
-See the `LICENSE` file for details.
+See the `COPYRIGHT` file for details.
 
 ## Code contributions
 
