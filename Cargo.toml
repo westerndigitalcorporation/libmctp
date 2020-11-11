@@ -1,8 +1,12 @@
 [package]
 name = "libmctp"
-repository = "https://github.com/?/?"
+description = "libMCTP is a MCTP (Management Component Transport Protocol) implementation for Rust"
+repository = "https://github.com/westerndigitalcorporation/libmctp"
+license = "MIT OR Apache-2.0"
 version = "0.1.0"
 authors = ["Alistair Francis <alistair.francis@wdc.com>"]
+keywords = ["MCTP", "SMBus"]
+categories = ["embedded", "encoding", "no-std", "parser-implementations", "parsing"]
 edition = "2018"
 readme = "README.md"
 
