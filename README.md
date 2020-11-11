@@ -1,5 +1,8 @@
 # libMCTP
 
+[![Crate](https://img.shields.io/crates/v/libmctp.svg)](https://crates.io/crates/libmctp)
+[![API](https://docs.rs/libmctp/badge.svg)](https://docs.rs/libmctp)
+
 libMCTP is a MCTP (Management Component Transport Protocol) implementation
 for Rust.
 
