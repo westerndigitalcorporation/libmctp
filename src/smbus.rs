@@ -141,7 +141,7 @@ use crate::control_packet::{
 };
 use crate::errors::{ControlMessageError, DecodeError};
 use crate::mctp_traits::{MCTPControlMessageRequest, SMBusMCTPRequestResponse};
-use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket, HDR_VERSION};
+use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket, HDR_VERSION, MCTP_SMBUS_COMMAND_CODE};
 use crate::smbus_request::MCTPSMBusContextRequest;
 use crate::smbus_response::MCTPSMBusContextResponse;
 use core::cell::Cell;
@@ -273,6 +273,36 @@ impl<'m> MCTPSMBusContext<'m> {
             MessageType::VendorDefinedIANA => unimplemented!(),
             _ => Err((MessageType::Invalid, DecodeError::Unknown)),
         }
+    }
+
+    /// Get the length of a packet
+    ///
+    /// This function will just return the total byte count of the SMBus packet.
+    /// This function purposely does almost no checks so that it can be run on
+    /// a partial packet to determine how many bytes to read from a bus.
+    ///
+    /// When returning the length the length is the byte count from the packet
+    /// plus four. This is because the byte count does not include the
+    /// "destination slave address", "command code", "byte count" or PEC.
+    /// This means it's the total number of bytes in the entire packet.
+    ///
+    /// `packet`: A buffer of the packet to get the headers from.
+    ///
+    /// On success returns the `usize` with the total length of the packet
+    /// based on the length of the command code.
+    /// On error returned the `MessageType` and a `DecodeError`.
+    pub fn get_length(&self, packet: &[u8]) -> Result<usize, (MessageType, DecodeError)> {
+        // The third bye contains the length, let's just get the first three
+        // bytes
+        let mut smbus_header_buf: [u8; 4] = [0; 4];
+        smbus_header_buf[0..3].copy_from_slice(&packet[0..3]);
+        let smbus_header = MCTPSMBusHeader::new_from_buf(smbus_header_buf);
+
+        if smbus_header.command_code() == MCTP_SMBUS_COMMAND_CODE {
+            return Ok(smbus_header.byte_count() as usize + 4);
+        }
+
+        Err((MessageType::Invalid, DecodeError::Unknown))
     }
 
     /// Get the MCTP control packet
