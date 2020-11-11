@@ -21,7 +21,12 @@ For details and examples on using libMCTP see the auto generated Rust docs.
 
 ## License
 
-See the `COPYRIGHT` file for details.
+libMCTP source code is dual licensed under the Apache-2.0 license
+and MIT license. A copy of these licenses can be found either in the
+LICENSE-APACHE or LICENSE-MIT files. Versions are also available at
+http://www.apache.org/licenses/LICENSE-2.0 and  http://opensource.org/licenses/MIT.
+
+See `LICENSE-APACHE`, `LICENSE-MIT`, and `COPYRIGHT` for details.
 
 ## Code contributions
 
@@ -34,5 +39,7 @@ passes all of these cargo commands:
 ```shell
 cargo fmt; cargo build; cargo test; cargo clippy
 ```
+
+The CI will also automatically run the above commands.
 
 If in doubt just open a PR and we can discuss from there.
