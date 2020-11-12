@@ -33,6 +33,7 @@ pub mod smbus;
 pub mod smbus_proto;
 pub mod smbus_request;
 pub mod smbus_response;
+pub mod vendor_packets;
 
 // Use this to generate nicer docs
 #[doc(inline)]

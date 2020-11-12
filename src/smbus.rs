@@ -13,7 +13,8 @@
 //! ## Generate a MCTP request
 //! ```rust
 //!     use libmctp::control_packet::MCTPVersionQuery;
-//!     use libmctp::smbus::{MCTPSMBusContext, VendorIDFormat};
+//!     use libmctp::smbus::MCTPSMBusContext;
+//!     use libmctp::vendor_packets::VendorIDFormat;
 //!
 //!     // The address of this device
 //!     const MY_ID: u8 = 0x23;
@@ -45,7 +46,8 @@
 //! ## Generate a MCTP response
 //! ```rust
 //!     use libmctp::control_packet::{CompletionCode, MCTPVersionQuery};
-//!     use libmctp::smbus::{MCTPSMBusContext, VendorIDFormat};
+//!     use libmctp::smbus::MCTPSMBusContext;
+//!     use libmctp::vendor_packets::VendorIDFormat;
 //!
 //!     // The address of this device
 //!     const MY_ID: u8 = 0x23;
@@ -77,7 +79,8 @@
 //! ## Decode a packet received
 //! ```rust
 //!     use libmctp::control_packet::MCTPVersionQuery;
-//!     use libmctp::smbus::{MCTPSMBusContext, VendorIDFormat};
+//!     use libmctp::smbus::MCTPSMBusContext;
+//!     use libmctp::vendor_packets::VendorIDFormat;
 //!
 //!     // The address of this device
 //!     const MY_ID: u8 = 0x23;
@@ -105,7 +108,8 @@
 //! ## Process a request to generate a response
 //! ```rust
 //!     use libmctp::control_packet::MCTPVersionQuery;
-//!     use libmctp::smbus::{MCTPSMBusContext, VendorIDFormat};
+//!     use libmctp::smbus::MCTPSMBusContext;
+//!     use libmctp::vendor_packets::VendorIDFormat;
 //!
 //!     // The address of this device
 //!     const MY_ID: u8 = 0x23;
@@ -144,6 +148,7 @@ use crate::mctp_traits::{MCTPControlMessageRequest, SMBusMCTPRequestResponse};
 use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket, HDR_VERSION, MCTP_SMBUS_COMMAND_CODE};
 use crate::smbus_request::MCTPSMBusContextRequest;
 use crate::smbus_response::MCTPSMBusContextResponse;
+use crate::vendor_packets::VendorIDFormat;
 use core::cell::Cell;
 use smbus_pec::pec;
 
@@ -163,18 +168,6 @@ type ControlRawPacketData<'a, 'b> = (
     Option<CompletionCode>,
     MCTPMessageBody<'a, 'b>,
 );
-
-/// The Vendor ID Format as described in table 21
-pub struct VendorIDFormat {
-    /// The Vendor ID Format
-    ///  * PCI Vendor ID: 0
-    ///  * IANA Enterprise Number: 1
-    pub format: u8,
-    /// The vendor ID data, either 2 or 4 bytes
-    pub data: u32,
-    /// An extra 2 bytes
-    pub numeric_value: u16,
-}
 
 /// The global context for MCTP SMBus operations
 pub struct MCTPSMBusContext<'m> {
