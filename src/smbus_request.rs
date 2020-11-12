@@ -75,7 +75,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 2] = [operation as u8, eid];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Returns the EID presently assigned to an endpoint. Also returns
@@ -93,7 +93,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 0] = [0; 0];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Retrieves a per-device unique UUID associated with the endpoint
@@ -109,7 +109,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 0] = [0; 0];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Generate a packet to get the MCTP Versions supported by a device.
@@ -131,7 +131,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 1] = [query as u8];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Lists the message types that an endpoint supports
@@ -147,7 +147,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 0] = [0; 0];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Used to discover an MCTP endpoint’s vendor-specific MCTP extensions and capabilities
@@ -173,7 +173,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 1] = [vendor_id as u8];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Used to get the physical address associated with a given EID
@@ -195,7 +195,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 1] = [endpont_id];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Used by the bus owner to allocate a pool of EIDs to an MCTP bridge
@@ -222,7 +222,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 3] = [operation as u8, pool_size, starting_eid];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Used by the bus owner to extend or update the routing information that
@@ -256,7 +256,7 @@ impl MCTPSMBusContextRequest {
             message_data[offset..(offset + 4)].copy_from_slice(&entry.0);
         }
 
-        self.generate_packet_bytes(
+        self.generate_control_packet_bytes(
             dest_addr,
             &message_header,
             &message_data[0..(1 + num_entries * 4)],
@@ -284,7 +284,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 1] = [entry_handle];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Used to direct endpoints to clear their “discovered”flags to enable
@@ -305,7 +305,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 0] = [0; 0];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Used to discover MCTP-capable devices on a bus, provided that another
@@ -322,7 +322,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 0] = [0; 0];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Used to notify the bus owner that an MCTP device has become
@@ -339,7 +339,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 0] = [0; 0];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Used to get the MCTP networkID
@@ -355,7 +355,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 0] = [0; 0];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Used to discover what bridges, if any, are in the path to a given
@@ -381,7 +381,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 2] = [target_eid, msg_type as u8];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Used by endpoints to find another endpoint matching an endpoint
@@ -408,7 +408,7 @@ impl MCTPSMBusContextRequest {
         message_data[0..16].copy_from_slice(uuid);
         message_data[16] = entry_handle;
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Used to discover the data rate limit settings of the given target for
@@ -425,7 +425,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 0] = [0; 0];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Used to request the allowed transmit data rate limit for the
@@ -442,7 +442,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 0] = [0; 0];
 
-        let _ = self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf);
+        let _ = self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf);
 
         unimplemented!()
     }
@@ -461,7 +461,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 0] = [0; 0];
 
-        let _ = self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf);
+        let _ = self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf);
 
         unimplemented!()
     }
@@ -479,7 +479,7 @@ impl MCTPSMBusContextRequest {
 
         let message_data: [u8; 0] = [0; 0];
 
-        let _ = self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf);
+        let _ = self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf);
 
         unimplemented!()
     }

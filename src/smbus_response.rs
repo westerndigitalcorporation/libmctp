@@ -86,7 +86,7 @@ impl MCTPSMBusContextResponse {
             message_data[1] |= 1 << 4;
         }
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Returns the EID presently assigned to an endpoint. Also returns
@@ -125,7 +125,7 @@ impl MCTPSMBusContextResponse {
             fairness_support as u8,
         ];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Retrieves a per-device unique UUID associated with the endpoint
@@ -155,7 +155,7 @@ impl MCTPSMBusContextResponse {
         message_data[0] = completion_code as u8;
         message_data[1..17].copy_from_slice(uuid);
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Generate a response to the MCTP Version request supported by a device.
@@ -180,7 +180,7 @@ impl MCTPSMBusContextResponse {
         // Version: 1.3.1
         let message_data: [u8; 6] = [completion_code as u8, 1, 0xF1, 0xF3, 0xF1, 0x00];
 
-        self.generate_packet_bytes(dest_addr, &message_header, &message_data, buf)
+        self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
 
     /// Lists the message types that an endpoint supports
@@ -221,7 +221,7 @@ impl MCTPSMBusContextResponse {
             message_data[2 + i] = *d;
         }
 
-        self.generate_packet_bytes(
+        self.generate_control_packet_bytes(
             dest_addr,
             &message_header,
             &message_data[0..(msg_type_count + 2)],
@@ -290,7 +290,7 @@ impl MCTPSMBusContextResponse {
             message_data[2 + i] = *d;
         }
 
-        self.generate_packet_bytes(
+        self.generate_control_packet_bytes(
             dest_addr,
             &message_header,
             &message_data[0..(vendor_length + 2)],

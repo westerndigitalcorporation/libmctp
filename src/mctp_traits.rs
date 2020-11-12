@@ -133,7 +133,7 @@ pub(crate) trait SMBusMCTPRequestResponse {
     }
 
     /// Store the packet bytes in the `buf`.
-    fn generate_packet_bytes(
+    fn generate_control_packet_bytes(
         &self,
         dest_addr: u8,
         message_header: &Option<&[u8]>,
