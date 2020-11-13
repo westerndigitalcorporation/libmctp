@@ -7,6 +7,7 @@ use crate::control_packet::{
 };
 use crate::mctp_traits::SMBusMCTPRequestResponse;
 use crate::smbus_proto::SMBusRoutingInformationUpdateEntry;
+use crate::vendor_packets::{IANAMessageFormat, PCIMessageFormat, VendorIDFormat};
 use core::cell::Cell;
 
 /// The context for MCTP SMBus request protocol operations
@@ -482,6 +483,41 @@ impl MCTPSMBusContextRequest {
         let _ = self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf);
 
         unimplemented!()
+    }
+
+    /// Send a vendor defined request
+    ///
+    /// `dest_addr`: The address to send the data to.
+    /// `format`: A reference to the VendorIDFormat used to send the message
+    /// `msg`: The vendor defined message that should be sent
+    /// `buf`: A mutable buffer to store the request bytes.
+    ///
+    /// Returns the length of the query on success.
+    pub fn vendor_defined(
+        &self,
+        dest_addr: u8,
+        format: &VendorIDFormat,
+        msg: &[u8],
+        buf: &mut [u8],
+    ) -> Result<usize, ()> {
+        if format.format == 0 {
+            /* PCI message format */
+            let pci_msg_header = PCIMessageFormat::new(format.data as u16);
+            let message_header = Some(&(pci_msg_header.0[..]));
+
+            #[cfg(test)]
+            println!("message_header: {:#x?}", message_header);
+
+            self.generate_pci_msg_packet_bytes(dest_addr, &message_header, &msg, buf)
+        } else if format.format == 1 {
+            /* IANA message format */
+            let iana_msg_header = IANAMessageFormat::new(format.data);
+            let message_header = Some(&(iana_msg_header.0[..]));
+
+            self.generate_iana_msg_packet_bytes(dest_addr, &message_header, &msg, buf)
+        } else {
+            Err(())
+        }
     }
 }
 
@@ -965,5 +1001,43 @@ mod tests {
         assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
         // Command Code
         assert_eq!(buf[10], CommandCode::QueryRateLimit as u8);
+    }
+
+    #[test]
+    fn test_vendor_defined() {
+        const DEST_ID: u8 = 0x23;
+        const VENDOR_ID: VendorIDFormat = VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1414,
+            // Extra data
+            numeric_value: 4,
+        };
+
+        let ctx = MCTPSMBusContextRequest::new(DEST_ID);
+        let mut buf: [u8; 21] = [0; 21];
+
+        let len = ctx
+            .vendor_defined(0xB, &VENDOR_ID, &[0x00, 0x01, 0x00], &mut buf)
+            .unwrap();
+
+        println!("buf: {:#x?}", buf);
+
+        assert_eq!(len, 15);
+        // Byte count
+        assert_eq!(buf[2], 11);
+        // IC and Message Type
+        assert_eq!(buf[8], 0 << 7 | MessageType::VendorDefinedPCI as u8);
+        // PCIe Vendor ID
+        assert_eq!(buf[9], 0x14);
+        assert_eq!(buf[10], 0x14);
+        // Payload
+        assert_eq!(buf[11], 0x00);
+        assert_eq!(buf[12], 0x01);
+        assert_eq!(buf[13], 0x00);
+
+        // PEC
+        assert_eq!(buf[14], 0x5B);
     }
 }

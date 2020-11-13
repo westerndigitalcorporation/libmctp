@@ -262,8 +262,33 @@ impl<'m> MCTPSMBusContext<'m> {
                 &packet[9..],
                 calculated_pec,
             ),
-            MessageType::VendorDefinedPCI => unimplemented!(),
-            MessageType::VendorDefinedIANA => unimplemented!(),
+            MessageType::VendorDefinedPCI => {
+                let packet_len = packet.len() - 1;
+                let pec = packet[packet_len];
+
+                if pec != calculated_pec {
+                    #[cfg(test)]
+                    println!("pec {:#x} != calculated_pec {:#x}", pec, calculated_pec);
+                    return Err((
+                        MessageType::VendorDefinedPCI,
+                        DecodeError::ControlMessage(ControlMessageError::InvalidPEC),
+                    ));
+                }
+                Ok((MessageType::VendorDefinedPCI, &packet[9..(packet_len)]))
+            }
+            MessageType::VendorDefinedIANA => {
+                let packet_len = packet.len() - 1;
+                let pec = packet[packet_len];
+
+                if pec != calculated_pec {
+                    return Err((
+                        MessageType::VendorDefinedIANA,
+                        DecodeError::ControlMessage(ControlMessageError::InvalidPEC),
+                    ));
+                }
+
+                Ok((MessageType::VendorDefinedIANA, &packet[9..(packet_len - 1)]))
+            }
             _ => Err((MessageType::Invalid, DecodeError::Unknown)),
         }
     }
@@ -1723,5 +1748,40 @@ mod get_vendor_defined_message_support_tests {
         for (i, d) in vendor_id.iter().enumerate() {
             assert_eq!(buf_response[13 + i], *d);
         }
+    }
+}
+
+#[cfg(test)]
+mod vendor_defined_messages {
+    use super::*;
+
+    #[test]
+    fn test_decode_request() {
+        const SOURCE_ID: u8 = 0x34;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let buf: [u8; 46] = [
+            0x46, 0xf, 0x2a, 0x17, 0x1, 0x23, 0xb, 0xc0, 0x7e, 0x14, 0x14, 0x0, 0x1, 0x0, 0x0, 0x0,
+            0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+            0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x42,
+        ];
+
+        let (msg_type, payload) = ctx.decode_packet(&buf).unwrap();
+
+        assert_eq!(msg_type, MessageType::VendorDefinedPCI);
+        assert_eq!(payload.len(), 36);
+        // PCI ID
+        assert_eq!(payload[0], 0x14);
+        assert_eq!(payload[1], 0x14);
     }
 }
