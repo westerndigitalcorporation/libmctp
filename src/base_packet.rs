@@ -11,6 +11,14 @@ use crate::mctp_traits::MCTPHeader;
 pub enum MessageType {
     /// A control message
     MCtpControl = 0x00,
+    /// Messages used to convey Security Protocol and Data Model Specification
+    /// (SPDM) traffic over MCTP, as specified in DSP0275.
+    /// Defined in https://www.dmtf.org/sites/default/files/standards/documents/DSP0239_1.9.0.pdf
+    SpdmOverMctp = 0x05,
+    /// Messages used to convey Secured Messages using SPDM over
+    /// MCTP Binding Specification traffic, as specified in DSP0276.
+    /// Defined in https://www.dmtf.org/sites/default/files/standards/documents/DSP0239_1.9.0.pdf
+    SecuredMessages = 0x06,
     /// Message type used to support VDMs where the vendor is identified using
     /// a PCI-based vendor ID.
     VendorDefinedPCI = 0x7E,
