@@ -174,6 +174,27 @@ pub(crate) trait SMBusMCTPRequestResponse {
         Ok(packet.to_raw_bytes(buf))
     }
 
+    /// Store a SPDM Vendor message bytes in `buf`
+    fn generate_spdm_msg_packet_bytes(
+        &self,
+        dest_addr: u8,
+        message_header: &Option<&[u8]>,
+        message_data: &[u8],
+        buf: &mut [u8],
+    ) -> Result<usize, ()> {
+        let mut smbus_header = self.generate_smbus_header(dest_addr);
+        let base_header = self.generate_transport_header(dest_addr);
+
+        let header: MCTPMessageBodyHeader<[u8; 1]> =
+            MCTPMessageBodyHeader::new(false, MessageType::SpdmOverMctp);
+
+        let body = MCTPMessageBody::new(&header, *message_header, message_data, None);
+
+        let packet = MCTPSMBusPacket::new(&mut smbus_header, &base_header, &body);
+
+        Ok(packet.to_raw_bytes(buf))
+    }
+
     /// Store a IANA Vendor message bytes in `buf`
     fn generate_iana_msg_packet_bytes(
         &self,
