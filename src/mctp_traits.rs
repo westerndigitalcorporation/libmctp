@@ -146,7 +146,7 @@ pub(crate) trait SMBusMCTPRequestResponse {
         let header: MCTPMessageBodyHeader<[u8; 1]> =
             MCTPMessageBodyHeader::new(false, MessageType::MCtpControl);
 
-        let body = MCTPMessageBody::new(&header, *message_header, &message_data, None);
+        let body = MCTPMessageBody::new(&header, *message_header, message_data, None);
 
         let packet = MCTPSMBusPacket::new(&mut smbus_header, &base_header, &body);
 
@@ -167,7 +167,7 @@ pub(crate) trait SMBusMCTPRequestResponse {
         let header: MCTPMessageBodyHeader<[u8; 1]> =
             MCTPMessageBodyHeader::new(false, MessageType::VendorDefinedPCI);
 
-        let body = MCTPMessageBody::new(&header, *message_header, &message_data, None);
+        let body = MCTPMessageBody::new(&header, *message_header, message_data, None);
 
         let packet = MCTPSMBusPacket::new(&mut smbus_header, &base_header, &body);
 
@@ -188,7 +188,7 @@ pub(crate) trait SMBusMCTPRequestResponse {
         let header: MCTPMessageBodyHeader<[u8; 1]> =
             MCTPMessageBodyHeader::new(false, MessageType::VendorDefinedIANA);
 
-        let body = MCTPMessageBody::new(&header, *message_header, &message_data, None);
+        let body = MCTPMessageBody::new(&header, *message_header, message_data, None);
 
         let packet = MCTPSMBusPacket::new(&mut smbus_header, &base_header, &body);
 

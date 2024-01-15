@@ -20,6 +20,7 @@
 
 #![no_std]
 #![deny(missing_docs)]
+#![allow(clippy::result_unit_err)]
 
 #[macro_use]
 extern crate bitfield;

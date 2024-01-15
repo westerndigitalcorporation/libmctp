@@ -7,7 +7,7 @@ version = "0.1.0"
 authors = ["Alistair Francis <alistair.francis@wdc.com>"]
 keywords = ["MCTP", "SMBus"]
 categories = ["embedded", "encoding", "no-std", "parser-implementations", "parsing"]
-edition = "2018"
+edition = "2021"
 readme = "README.md"
 
 [dependencies]
