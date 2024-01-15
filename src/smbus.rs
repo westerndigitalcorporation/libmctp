@@ -395,11 +395,11 @@ impl<'m> MCTPSMBusContext<'m> {
     }
 
     /// Decodes a MCTP request packet
-    fn decode_mctp_control<'a, 'b>(
+    fn decode_mctp_control<'a>(
         &self,
         smbus_header: &MCTPSMBusHeader<[u8; 4]>,
         base_header: &MCTPTransportHeader<[u8; 4]>,
-        body_header: &'b MCTPMessageBodyHeader<[u8; 1]>,
+        body_header: &MCTPMessageBodyHeader<[u8; 1]>,
         packet: &'a [u8],
         calculated_pec: u8,
     ) -> Result<ControlDecodedPacketData<'a>, (MessageType, DecodeError)> {
@@ -425,10 +425,10 @@ impl<'m> MCTPSMBusContext<'m> {
     /// an option. If `None` then `response_buf` wasn't changed because the
     /// `packet` was not a request. If `Some` it contains the length of the
     /// data written in the `response_buf`.
-    pub fn process_packet<'a, 'b>(
+    pub fn process_packet<'a>(
         &self,
         packet: &'a [u8],
-        response_buf: &'b mut [u8],
+        response_buf: &mut [u8],
     ) -> Result<(ControlDecodedPacketData<'a>, Option<usize>), (MessageType, DecodeError)> {
         let (msg_type, payload) = self.decode_packet(packet)?;
 
@@ -529,7 +529,7 @@ impl<'m> MCTPSMBusContext<'m> {
                                 .get_message_type_suport(
                                     CompletionCode::Success,
                                     base_header.source_endpoint_id(),
-                                    &self.msg_types,
+                                    self.msg_types,
                                     response_buf,
                                 )
                                 .unwrap();

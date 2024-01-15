@@ -208,7 +208,7 @@ impl MCTPSMBusContextResponse {
         //  * Completion code
         //  * MCTP Message Type Count
         //  * List of Message Type numbers
-        let msg_type_count = supported_msg_types.len() as usize;
+        let msg_type_count = supported_msg_types.len();
         let mut message_data: [u8; 32] = [0; 32];
         message_data[0] = completion_code as u8;
         message_data[1] = msg_type_count as u8;
@@ -273,7 +273,7 @@ impl MCTPSMBusContextResponse {
         //  * Vendor ID (variable length, between 3 and 5 bytes)
         //  * 16-bit numeric value or bit field, as specified by the vendor
         //    or organization identified by the vendor ID
-        let vendor_length = vendor_id.len() as usize;
+        let vendor_length = vendor_id.len();
         let mut message_data: [u8; 9] = [
             completion_code as u8,
             vendor_id_selector,

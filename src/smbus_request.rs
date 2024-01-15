@@ -172,7 +172,7 @@ impl MCTPSMBusContextRequest {
         );
         let message_header = Some(&(command_header.0[..]));
 
-        let message_data: [u8; 1] = [vendor_id as u8];
+        let message_data: [u8; 1] = [vendor_id];
 
         self.generate_control_packet_bytes(dest_addr, &message_header, &message_data, buf)
     }
@@ -508,13 +508,13 @@ impl MCTPSMBusContextRequest {
             #[cfg(test)]
             println!("message_header: {:#x?}", message_header);
 
-            self.generate_pci_msg_packet_bytes(dest_addr, &message_header, &msg, buf)
+            self.generate_pci_msg_packet_bytes(dest_addr, &message_header, msg, buf)
         } else if format.format == 1 {
             /* IANA message format */
             let iana_msg_header = IANAMessageFormat::new(format.data);
             let message_header = Some(&(iana_msg_header.0[..]));
 
-            self.generate_iana_msg_packet_bytes(dest_addr, &message_header, &msg, buf)
+            self.generate_iana_msg_packet_bytes(dest_addr, &message_header, msg, buf)
         } else {
             Err(())
         }
