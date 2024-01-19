@@ -11,5 +11,5 @@ edition = "2021"
 readme = "README.md"
 
 [dependencies]
-bitfield = "0.13.2"
-smbus-pec = "0.1.0"
+bitfield = "0.14"
+smbus-pec = "1.0.1"
