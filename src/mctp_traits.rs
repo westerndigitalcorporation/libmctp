@@ -90,7 +90,7 @@ pub(crate) trait MCTPControlMessageRequest {
 }
 
 /// The standard trait for SMBus Request and Response
-pub(crate) trait SMBusMCTPRequestResponse {
+pub trait SMBusMCTPRequestResponse {
     /// Get the address of the device
     ///
     /// Returns the address
