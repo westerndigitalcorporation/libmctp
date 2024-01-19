@@ -289,6 +289,20 @@ impl<'m> MCTPSMBusContext<'m> {
 
                 Ok((MessageType::VendorDefinedIANA, &packet[9..(packet_len - 1)]))
             }
+            MessageType::SpdmOverMctp => {
+                let packet_len = packet.len() - 1;
+                let pec = packet[packet_len];
+
+                if pec != calculated_pec {
+                    #[cfg(test)]
+                    println!("pec {:#x} != calculated_pec {:#x}", pec, calculated_pec);
+                    return Err((
+                        MessageType::SpdmOverMctp,
+                        DecodeError::ControlMessage(ControlMessageError::InvalidPEC),
+                    ));
+                }
+                Ok((MessageType::SpdmOverMctp, &packet[9..(packet_len)]))
+            }
             _ => Err((MessageType::Invalid, DecodeError::Unknown)),
         }
     }
@@ -1783,5 +1797,68 @@ mod vendor_defined_messages {
         // PCI ID
         assert_eq!(payload[0], 0x14);
         assert_eq!(payload[1], 0x14);
+    }
+}
+
+#[cfg(test)]
+mod spdm_messages {
+    use super::*;
+
+    #[test]
+    fn test_decode_request_one() {
+        const SOURCE_ID: u8 = 0x22;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let buf: [u8; 14] = [
+            0x44, 0x0f, 0x0a, 0x69, 0x01, 0x22, 0x34, 0xc8, 0x05, 0x10, 0x84, 0x00, 0x00,
+            0x9c,
+        ];
+
+        let (msg_type, payload) = ctx.decode_packet(&buf).unwrap();
+
+        assert_eq!(msg_type, MessageType::SpdmOverMctp);
+        assert_eq!(payload.len(), 4);
+        // PCI ID
+        assert_eq!(payload[0], 0x10);
+        assert_eq!(payload[1], 0x84);
+    }
+
+    #[test]
+    fn test_decode_request_two() {
+        const SOURCE_ID: u8 = 0x34;
+
+        let msg_types: [u8; 0] = [0; 0];
+        let vendor_ids = [VendorIDFormat {
+            // PCI Vendor ID
+            format: 0x00,
+            // PCI VID
+            data: 0x1234,
+            // Extra data
+            numeric_value: 0xAB,
+        }];
+
+        let ctx = MCTPSMBusContext::new(SOURCE_ID, &msg_types, &vendor_ids);
+        let buf: [u8; 18] = [
+            0x68, 0x0f, 0x0e, 0x45, 0x01, 0x34, 0x22, 0xc8, 0x05, 0x10, 0x04, 0x00, 0x00,
+            0x00, 0x01, 0x00, 0x12, 0x97,
+        ];
+
+        let (msg_type, payload) = ctx.decode_packet(&buf).unwrap();
+
+        assert_eq!(msg_type, MessageType::SpdmOverMctp);
+        assert_eq!(payload.len(), 8);
+        // PCI ID
+        assert_eq!(payload[0], 0x10);
+        assert_eq!(payload[1], 0x04);
     }
 }

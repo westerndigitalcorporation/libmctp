@@ -33,6 +33,8 @@ impl From<u8> for MessageType {
     fn from(num: u8) -> MessageType {
         match num {
             0x00 => MessageType::MCtpControl,
+            0x05 => MessageType::SpdmOverMctp,
+            0x06 => MessageType::SecuredMessages,
             0x7E => MessageType::VendorDefinedPCI,
             0x7F => MessageType::VendorDefinedIANA,
             _ => MessageType::Invalid,
