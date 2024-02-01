@@ -303,6 +303,20 @@ impl<'m> MCTPSMBusContext<'m> {
                 }
                 Ok((MessageType::SpdmOverMctp, &packet[9..(packet_len)]))
             }
+            MessageType::SecuredMessages => {
+                let packet_len = packet.len() - 1;
+                let pec = packet[packet_len];
+
+                if pec != calculated_pec {
+                    #[cfg(test)]
+                    println!("pec {:#x} != calculated_pec {:#x}", pec, calculated_pec);
+                    return Err((
+                        MessageType::SecuredMessages,
+                        DecodeError::ControlMessage(ControlMessageError::InvalidPEC),
+                    ));
+                }
+                Ok((MessageType::SecuredMessages, &packet[9..(packet_len)]))
+            }
             _ => Err((MessageType::Invalid, DecodeError::Unknown)),
         }
     }

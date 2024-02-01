@@ -178,6 +178,7 @@ pub trait SMBusMCTPRequestResponse {
     fn generate_spdm_msg_packet_bytes(
         &self,
         dest_addr: u8,
+        message_type: MessageType,
         message_header: &Option<&[u8]>,
         message_data: &[u8],
         buf: &mut [u8],
@@ -186,7 +187,7 @@ pub trait SMBusMCTPRequestResponse {
         let base_header = self.generate_transport_header(dest_addr);
 
         let header: MCTPMessageBodyHeader<[u8; 1]> =
-            MCTPMessageBodyHeader::new(false, MessageType::SpdmOverMctp);
+            MCTPMessageBodyHeader::new(false, message_type);
 
         let body = MCTPMessageBody::new(&header, *message_header, message_data, None);
 
