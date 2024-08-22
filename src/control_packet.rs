@@ -21,6 +21,7 @@ bitfield! {
 }
 
 /// A list of supported Command Codes
+#[derive(PartialEq, Debug, Clone, Copy, Eq)]
 pub enum CommandCode {
     /// Reserved
     Reserved = 0x00,
