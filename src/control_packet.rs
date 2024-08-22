@@ -11,11 +11,13 @@ bitfield! {
     /// Is the packet a request?
     pub rq, set_rq : 0, 0;
     /// Is this packet a datagram?
-    d, set_d: 1, 1;
+    pub d, set_d: 1, 1;
+    /// Reserved bits
     rsvd, _: 2, 2;
-    instance_id, set_instance_id: 7, 3;
+    /// Instance ID
+    pub instance_id, set_instance_id: 7, 3;
     /// The command code of the packet
-    command_code, set_command_code: 15, 8;
+    pub command_code, set_command_code: 15, 8;
 }
 
 /// A list of supported Command Codes
