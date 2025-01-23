@@ -308,7 +308,7 @@ mod tests {
     #[test]
     fn test_generate_smbus_header() {
         const DEST_ID: u8 = 0x23;
-        const SOURCE_ID: u8 = 0x23;
+        const SOURCE_ID: u8 = 0x44;
 
         let ctx = MCTPSMBusContextResponse::new(SOURCE_ID);
 

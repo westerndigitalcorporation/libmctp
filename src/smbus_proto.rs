@@ -28,7 +28,7 @@ bitfield! {
     /// This bit shall be set to 1b. The value enables MCTP to be differentiated from IPMI over SMBus and IPMB (IPMI over I2C) protocols.
     pub source_read_write, set_source_read_write: 24, 24;
     /// For the local SMBus link, the slave address of the source device.
-    pub source_slave_addr, set_source_slave_addr: 30, 25;
+    pub source_slave_addr, set_source_slave_addr: 31, 25;
 }
 
 impl MCTPSMBusHeader<[u8; 4]> {
