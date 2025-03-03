@@ -333,7 +333,7 @@ mod tests {
         let ctx = MCTPSMBusContextResponse::new(SOURCE_ID);
 
         let header = ctx.generate_transport_header(DEST_ID);
-        let buf = header.0;
+        let buf = header.to_bytes();
 
         // HDR version and reserved field
         assert_eq!(buf[0], HDR_VERSION);

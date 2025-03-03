@@ -56,7 +56,7 @@ impl Default for MCTPSMBusHeader<[u8; 4]> {
 /// The final constructed SMBus packet.
 pub(crate) struct MCTPSMBusPacket<'a, 'b> {
     smbus_header: &'a mut MCTPSMBusHeader<[u8; 4]>,
-    base_header: &'a MCTPTransportHeader<[u8; 4]>,
+    base_header: &'a MCTPTransportHeader,
     data_bytes: &'a MCTPMessageBody<'a, 'b>,
 }
 
@@ -64,7 +64,7 @@ impl<'a, 'b> MCTPSMBusPacket<'a, 'b> {
     /// Create a new SMBUs packet
     pub fn new(
         smbus_header: &'a mut MCTPSMBusHeader<[u8; 4]>,
-        base_header: &'a MCTPTransportHeader<[u8; 4]>,
+        base_header: &'a MCTPTransportHeader,
         data_bytes: &'b MCTPMessageBody,
     ) -> Self {
         let mut packet = Self {
@@ -111,7 +111,7 @@ impl MCTPHeader for MCTPSMBusPacket<'_, '_> {
         buf[0..4].copy_from_slice(&self.smbus_header.0);
         size += 4;
 
-        buf[4..8].copy_from_slice(&self.base_header.0);
+        buf[4..8].copy_from_slice(&self.base_header.to_bytes());
         size += 4;
 
         size += self.data_bytes.to_raw_bytes(&mut buf[size..]);

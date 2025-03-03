@@ -155,7 +155,7 @@ use smbus_pec::pec;
 /// The returned data for SMBus headers
 type SMBusHeaders = (
     MCTPSMBusHeader<[u8; 4]>,
-    MCTPTransportHeader<[u8; 4]>,
+    MCTPTransportHeader,
     MCTPMessageBodyHeader<[u8; 1]>,
 );
 
@@ -355,7 +355,7 @@ impl<'m> MCTPSMBusContext<'m> {
     fn get_mctp_control_packet<'a, 'b>(
         &self,
         _smbus_header: &MCTPSMBusHeader<[u8; 4]>,
-        _base_header: &MCTPTransportHeader<[u8; 4]>,
+        _base_header: &MCTPTransportHeader,
         body_header: &'b MCTPMessageBodyHeader<[u8; 1]>,
         packet: &'a [u8],
         calculated_pec: u8,
@@ -426,7 +426,7 @@ impl<'m> MCTPSMBusContext<'m> {
     fn decode_mctp_control<'a>(
         &self,
         smbus_header: &MCTPSMBusHeader<[u8; 4]>,
-        base_header: &MCTPTransportHeader<[u8; 4]>,
+        base_header: &MCTPTransportHeader,
         body_header: &MCTPMessageBodyHeader<[u8; 1]>,
         packet: &'a [u8],
         calculated_pec: u8,

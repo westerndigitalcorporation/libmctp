@@ -102,8 +102,8 @@ pub trait SMBusMCTPRequestResponse {
     fn set_eid(&self, eid: u8);
 
     /// Generate a transport header
-    fn generate_transport_header(&self, dest_addr: u8) -> MCTPTransportHeader<[u8; 4]> {
-        let mut base_header: MCTPTransportHeader<[u8; 4]> = MCTPTransportHeader::new(HDR_VERSION);
+    fn generate_transport_header(&self, dest_addr: u8) -> MCTPTransportHeader {
+        let mut base_header: MCTPTransportHeader = MCTPTransportHeader::new(HDR_VERSION);
         base_header.set_dest_endpoint_id(dest_addr);
         base_header.set_source_endpoint_id(self.get_address());
         base_header.set_som(true as u8);

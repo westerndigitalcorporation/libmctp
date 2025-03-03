@@ -44,34 +44,40 @@ impl From<u8> for MessageType {
 
 bitfield! {
     /// The MCTP Transport Header, 4 bytes long.
-    pub struct MCTPTransportHeader(MSB0 [u8]);
+    pub struct MCTPTransportHeader(u32);
     u8;
-    rsvd, _ : 3, 0;
+    rsvd, _ : 31, 28;
     /// Header version
-    pub hdr_version, set_hdr_version: 7, 4;
+    #[inline]
+    pub hdr_version, set_hdr_version: 27, 24;
     /// Destination Endpoint ID
-    pub dest_endpoint_id, set_dest_endpoint_id: 15, 8;
+    #[inline]
+    pub dest_endpoint_id, set_dest_endpoint_id: 23, 16;
     /// Source Endpoint ID
-    pub source_endpoint_id, set_source_endpoint_id: 23, 16;
+    #[inline]
+    pub source_endpoint_id, set_source_endpoint_id: 15, 8;
     /// Start of Message
-    pub som, set_som: 24, 24;
+    #[inline]
+    pub som, set_som: 7, 7;
     /// End of Message
-    pub eom, set_eom: 25, 25;
+    #[inline]
+    pub eom, set_eom: 6, 6;
     /// Packet Sequence Number
-    pub pkt_seq, set_pkt_seq: 27, 26;
+    #[inline]
+    pub pkt_seq, set_pkt_seq: 5, 4;
     /// Tag Owner
-    pub to, set_to: 28, 28;
+    #[inline]
+    pub to, set_to: 3, 3;
     /// Message Tag
-    pub msg_tag, set_msg_tag: 31, 29;
+    pub msg_tag, set_msg_tag: 2, 0;
 }
 
-impl MCTPTransportHeader<[u8; 4]> {
+impl MCTPTransportHeader {
     /// Create a new MCTPTransportHeader.
     ///
     /// `version`: The transport layer specific header version.
     pub fn new(version: u8) -> Self {
-        let buf = [0; 4];
-        let mut tran_header = MCTPTransportHeader(buf);
+        let mut tran_header = MCTPTransportHeader(0);
 
         tran_header.set_hdr_version(version);
 
@@ -83,7 +89,7 @@ impl MCTPTransportHeader<[u8; 4]> {
     /// `buffer`: The existing buffer for the `MCTPTransportHeader`
     /// `version`: The transport layer specific header version.
     pub fn new_from_buf(buf: [u8; 4], version: u8) -> Result<Self, ()> {
-        let header = MCTPTransportHeader(buf);
+        let header = MCTPTransportHeader(u32::from_be_bytes(buf));
 
         if header.rsvd() != 0x00 {
             return Err(());
@@ -94,6 +100,11 @@ impl MCTPTransportHeader<[u8; 4]> {
         }
 
         Ok(header)
+    }
+
+    /// Return the header as bytes.
+    pub fn to_bytes(&self) -> [u8; 4] {
+        self.0.to_be_bytes()
     }
 }
 
