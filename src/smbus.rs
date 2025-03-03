@@ -685,7 +685,7 @@ mod set_endpoint_id_tests {
 
         assert_eq!(msg_type, MessageType::MCtpControl);
         assert_eq!(payload.len(), 2);
-        assert_eq!(payload[1], EID as u8);
+        assert_eq!(payload[1], { EID });
     }
 
     #[test]
@@ -721,7 +721,7 @@ mod set_endpoint_id_tests {
         // EID Status
         assert_eq!(
             payload[0],
-            (MCTPSetEndpointIDAssignmentStatus::Accpeted as u8) << 4
+            ((MCTPSetEndpointIDAssignmentStatus::Accpeted as u8) << 4)
                 | MCTPSetEndpointIDAllocationStatus::NoIDPool as u8
         );
         // EID Setting
@@ -815,9 +815,9 @@ mod set_endpoint_id_tests {
         assert_eq!(buf_response[2], 12);
 
         // IC and Message Type
-        assert_eq!(buf_response[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf_response[8], (MessageType::MCtpControl as u8));
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf_response[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf_response[9], 0);
 
         // Command Code
         assert_eq!(buf_response[10], CommandCode::SetEndpointID as u8);
@@ -827,7 +827,7 @@ mod set_endpoint_id_tests {
         // EID Status
         assert_eq!(
             buf_response[12],
-            (MCTPSetEndpointIDAssignmentStatus::Accpeted as u8) << 4
+            ((MCTPSetEndpointIDAssignmentStatus::Accpeted as u8) << 4)
                 | MCTPSetEndpointIDAllocationStatus::NoIDPool as u8
         );
         // EID Setting
@@ -988,9 +988,9 @@ mod get_endpoint_id_tests {
         assert_eq!(buf_response[2], 12);
 
         // IC and Message Type
-        assert_eq!(buf_response[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf_response[8], (MessageType::MCtpControl as u8));
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf_response[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf_response[9], 0);
 
         // Command Code
         assert_eq!(buf_response[10], CommandCode::GetEndpointID as u8);
@@ -1060,9 +1060,9 @@ mod get_endpoint_id_tests {
         assert_eq!(buf_response[2], 12);
 
         // IC and Message Type
-        assert_eq!(buf_response[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf_response[8], (MessageType::MCtpControl as u8));
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf_response[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf_response[9], 0);
 
         // Command Code
         assert_eq!(buf_response[10], CommandCode::GetEndpointID as u8);
@@ -1239,9 +1239,9 @@ mod get_endpoint_uuid_tests {
         assert_eq!(buf_response[2], 25);
 
         // IC and Message Type
-        assert_eq!(buf_response[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf_response[8], (MessageType::MCtpControl as u8));
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf_response[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf_response[9], 0);
 
         // Command Code
         assert_eq!(buf_response[10], CommandCode::GetEndpointUUID as u8);
@@ -1316,13 +1316,13 @@ mod version_supported_tests {
 
         assert_eq!(msg_type, MessageType::MCtpControl);
         assert_eq!(payload.len(), 5);
-        assert_eq!(payload[0], 1 as u8);
+        assert_eq!(payload[0], 1_u8);
         // Major Version 1
-        assert_eq!(payload[1], 0xF1 as u8);
+        assert_eq!(payload[1], 0xF1_u8);
         // Minor Version 3
-        assert_eq!(payload[2], 0xF3 as u8);
+        assert_eq!(payload[2], 0xF3_u8);
         // Update 1
-        assert_eq!(payload[3], 0xF1 as u8);
+        assert_eq!(payload[3], 0xF1_u8);
     }
 
     #[test]
@@ -1406,9 +1406,9 @@ mod version_supported_tests {
         assert_eq!(buf_response[2], 14);
 
         // IC and Message Type
-        assert_eq!(buf_response[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf_response[8], (MessageType::MCtpControl as u8));
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf_response[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf_response[9], 0);
 
         // Command Code
         assert_eq!(buf_response[10], CommandCode::GetMCTPVersionSupport as u8);
@@ -1574,9 +1574,9 @@ mod get_message_type_suport_tests {
         assert_eq!(buf_response[2], 10 + msg_types.len() as u8);
 
         // IC and Message Type
-        assert_eq!(buf_response[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf_response[8], (MessageType::MCtpControl as u8));
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf_response[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf_response[9], 0);
 
         // Command Code
         assert_eq!(buf_response[10], CommandCode::GetMessageTypeSupport as u8);
@@ -1758,9 +1758,9 @@ mod get_vendor_defined_message_support_tests {
         assert_eq!(buf_response[2], 15);
 
         // IC and Message Type
-        assert_eq!(buf_response[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf_response[8], (MessageType::MCtpControl as u8));
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf_response[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf_response[9], 0);
 
         // Command Code
         assert_eq!(

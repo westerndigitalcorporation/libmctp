@@ -86,7 +86,7 @@ impl<'a, 'b> MCTPSMBusPacket<'a, 'b> {
     }
 }
 
-impl<'a, 'b> MCTPHeader for MCTPSMBusPacket<'a, 'b> {
+impl MCTPHeader for MCTPSMBusPacket<'_, '_> {
     /// Return the number of bytes used by the packet.
     fn len(&self) -> usize {
         let mut size = 0;
