@@ -6,7 +6,7 @@ use crate::base_packet::{
     MCTPMessageBody, MCTPMessageBodyHeader, MCTPTransportHeader, MessageType,
 };
 use crate::control_packet::CommandCode;
-use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket, HDR_VERSION, MCTP_SMBUS_COMMAND_CODE};
+use crate::smbus_proto::{HDR_VERSION, MCTP_SMBUS_COMMAND_CODE, MCTPSMBusHeader, MCTPSMBusPacket};
 
 /// The standard trait for all MCTP headers
 pub(crate) trait MCTPHeader {

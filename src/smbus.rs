@@ -145,7 +145,7 @@ use crate::control_packet::{
 };
 use crate::errors::{ControlMessageError, DecodeError};
 use crate::mctp_traits::{MCTPControlMessageRequest, SMBusMCTPRequestResponse};
-use crate::smbus_proto::{MCTPSMBusHeader, MCTPSMBusPacket, HDR_VERSION, MCTP_SMBUS_COMMAND_CODE};
+use crate::smbus_proto::{HDR_VERSION, MCTP_SMBUS_COMMAND_CODE, MCTPSMBusHeader, MCTPSMBusPacket};
 use crate::smbus_request::MCTPSMBusContextRequest;
 use crate::smbus_response::MCTPSMBusContextResponse;
 use crate::vendor_packets::VendorIDFormat;
