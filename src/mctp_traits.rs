@@ -13,11 +13,6 @@ pub(crate) trait MCTPHeader {
     /// Return the number of bytes in the header
     fn len(&self) -> usize;
 
-    /// Check if the header is empty
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
     /// Store the header packet into a buffer and return
     /// the number of bytes stored. The return value is the same as
     /// calling `len()`.

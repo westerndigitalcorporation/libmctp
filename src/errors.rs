@@ -11,7 +11,7 @@ pub enum ControlMessageError {
     InvalidRequestDataLength,
     /// The packet sent has an invalid control header
     InvalidControlHeader,
-    ///
+    /// The complete code was unsuccessful
     UnsuccessfulCompletionCode(CompletionCode),
     /// Invalid PEC
     InvalidPEC,

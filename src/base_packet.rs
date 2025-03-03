@@ -174,7 +174,7 @@ impl<'a, 'b> MCTPMessageBody<'a, 'b> {
     }
 }
 
-impl<'a, 'b> MCTPHeader for MCTPMessageBody<'a, 'b> {
+impl MCTPHeader for MCTPMessageBody<'_, '_> {
     /// Return the number of bytes used by the packet.
     fn len(&self) -> usize {
         let mut offset = 0;

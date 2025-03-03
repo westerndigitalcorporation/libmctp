@@ -121,7 +121,7 @@ impl MCTPSMBusContextResponse {
         let message_data: [u8; 4] = [
             completion_code as u8,
             self.eid.get(),
-            (endpoint_type as u8) << 4 | endpoint_id_type as u8,
+            ((endpoint_type as u8) << 4) | endpoint_id_type as u8,
             fairness_support as u8,
         ];
 
@@ -322,7 +322,7 @@ mod tests {
         // Byte count, is set later
         assert_eq!(buf[2], 0);
         // Source slave address, bit 0 is always 1
-        assert_eq!(buf[3], SOURCE_ID << 1 | 1);
+        assert_eq!(buf[3], (SOURCE_ID << 1) | 1);
     }
 
     #[test]
@@ -342,7 +342,7 @@ mod tests {
         // Source endpoint ID
         assert_eq!(buf[2], SOURCE_ID);
         // SOM, EOM, Pck_seq, TO and Msg_tab
-        assert_eq!(buf[3], 1 << 7 | 1 << 6 | 0 << 4 | 1 << 3 | 0);
+        assert_eq!(buf[3], (((1 << 7) | (1 << 6)) | (1 << 3)));
     }
 
     #[test]
@@ -372,9 +372,9 @@ mod tests {
         assert_eq!(buf[2], 12);
 
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], (MessageType::MCtpControl as u8));
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 0);
 
         // Command Code
         assert_eq!(buf[10], CommandCode::SetEndpointID as u8);
@@ -384,7 +384,7 @@ mod tests {
         // EID Status
         assert_eq!(
             buf[12],
-            (MCTPSetEndpointIDAssignmentStatus::Accpeted as u8) << 4
+            ((MCTPSetEndpointIDAssignmentStatus::Accpeted as u8) << 4)
                 | MCTPSetEndpointIDAllocationStatus::NoIDPool as u8
         );
         // EID Setting
@@ -421,9 +421,9 @@ mod tests {
         assert_eq!(buf[2], 12);
 
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], (MessageType::MCtpControl as u8));
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 0);
 
         // Command Code
         assert_eq!(buf[10], CommandCode::GetEndpointID as u8);
@@ -464,9 +464,9 @@ mod tests {
         assert_eq!(buf[2], 25);
 
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], (MessageType::MCtpControl as u8));
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 0);
 
         // Command Code
         assert_eq!(buf[10], CommandCode::GetEndpointUUID as u8);
@@ -497,9 +497,9 @@ mod tests {
         assert_eq!(buf[2], 14);
 
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], (MessageType::MCtpControl as u8));
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 0);
 
         // Command Code
         assert_eq!(buf[10], CommandCode::GetMCTPVersionSupport as u8);
@@ -538,9 +538,9 @@ mod tests {
         assert_eq!(buf[2], 11);
 
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], (MessageType::MCtpControl as u8));
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 0);
 
         // Command Code
         assert_eq!(buf[10], CommandCode::GetMessageTypeSupport as u8);
@@ -581,9 +581,9 @@ mod tests {
         assert_eq!(buf[2], 15);
 
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], (MessageType::MCtpControl as u8));
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 0 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 0);
 
         // Command Code
         assert_eq!(buf[10], CommandCode::GetVendorDefinedMessageSupport as u8);

@@ -544,7 +544,7 @@ mod tests {
         // Byte count, is set later
         assert_eq!(buf[2], 0);
         // Source slave address, bit 0 is always 1
-        assert_eq!(buf[3], SOURCE_ID << 1 | 1);
+        assert_eq!(buf[3], (SOURCE_ID << 1) | 1);
     }
 
     #[test]
@@ -564,7 +564,7 @@ mod tests {
         // Source endpoint ID
         assert_eq!(buf[2], SOURCE_ID);
         // SOM, EOM, Pck_seq, TO and Msg_tab
-        assert_eq!(buf[3], 1 << 7 | 1 << 6 | 0 << 4 | 1 << 3 | 0);
+        assert_eq!(buf[3], (((1 << 7) | (1 << 6)) | (1 << 3)));
     }
 
     #[test]
@@ -584,9 +584,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 10);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::SetEndpointID as u8);
         // Operation
@@ -609,9 +609,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::GetEndpointID as u8);
     }
@@ -630,9 +630,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::GetEndpointUUID as u8);
     }
@@ -653,9 +653,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 9);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::GetMCTPVersionSupport as u8);
         // Command query
@@ -676,9 +676,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::GetMessageTypeSupport as u8);
     }
@@ -700,9 +700,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 9);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::GetVendorDefinedMessageSupport as u8);
         // Vendor ID
@@ -724,9 +724,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 9);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::ResolveEndpointID as u8);
         // EID
@@ -755,9 +755,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 11);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::AllocateEndpointIDs as u8);
         // Operation
@@ -791,9 +791,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 13);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::RoutingInformationUpdate as u8);
         // Count
@@ -827,9 +827,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 9);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::GetRoutingTableEntries as u8);
         // Entry Handle
@@ -852,9 +852,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::PrepareForEndpointDiscovery as u8);
     }
@@ -873,9 +873,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::EndpointDiscovery as u8);
     }
@@ -894,9 +894,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::DiscoveryNotify as u8);
     }
@@ -915,9 +915,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::GetNetworkID as u8);
     }
@@ -939,9 +939,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 10);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::GetNetworkID as u8);
         // Target Endpoint ID
@@ -969,9 +969,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 25);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::ResolveUUID as u8);
         // Endpoint ID
@@ -996,9 +996,9 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 8);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::MCtpControl as u8);
+        assert_eq!(buf[8], MessageType::MCtpControl as u8);
         // Rq, D, rsvd and Instance ID
-        assert_eq!(buf[9], 1 << 7 | 0 << 6 | 0 << 5 | 0);
+        assert_eq!(buf[9], 1 << 7);
         // Command Code
         assert_eq!(buf[10], CommandCode::QueryRateLimit as u8);
     }
@@ -1028,7 +1028,7 @@ mod tests {
         // Byte count
         assert_eq!(buf[2], 11);
         // IC and Message Type
-        assert_eq!(buf[8], 0 << 7 | MessageType::VendorDefinedPCI as u8);
+        assert_eq!(buf[8], (MessageType::VendorDefinedPCI as u8));
         // PCIe Vendor ID
         assert_eq!(buf[9], 0x14);
         assert_eq!(buf[10], 0x14);
